@@ -39,6 +39,7 @@ jobs:
         with:
           name: candidate-${{ matrix.architecture }}
           path: .artifacts/*.tar.gz
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
@@ -48,6 +49,7 @@ jobs:
         with:
           name: security-${{ matrix.architecture }}
           path: .artifacts/security-streamtool-relay-*/*
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
       - name: Cleanup

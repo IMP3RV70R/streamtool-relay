@@ -1,7 +1,8 @@
 # Native bundles and offline signing
 
 Implemented: architecture-specific native Linux packaging and a signing/preflight
-command. No production seed, public feed, remote build or publication is configured.
+command. Native GitHub builds are configured; no production seed, public feed or
+publication is configured.
 The repository is `IMP3RV70R/streamtool-relay`. This process is not byte-for-byte
 reproducible: base images, apt repositories and archive timestamps are not locked to
 one immutable snapshot. It provides a repeatable checked release procedure.
@@ -107,16 +108,16 @@ Agent and source dependency checks are covered by the existing source gates; thi
 image scan alone does not attest every shipped binary. BuildKit/Buildx is required
 explicitly before packaging, preventing accidental legacy-builder fallback.
 
-The native workflow has been linted locally; no successful GitHub run or native
-amd64 acceptance is recorded. Local ARM hardware/isolated Debian VM tests arm64;
-x86 emulation does not establish native amd64 acceptance. No production key or
-published release feed exists.
+Native amd64 and arm64 packaging and exact-image security scans passed on GitHub
+for candidate `0.1.0-candidate.20260918`. These gates do not establish initial host
+installation or production acceptance. No production key or published release feed
+exists. Archive/report uploads explicitly include the hidden `.artifacts` directory
+and remain restricted to the declared candidate and report globs.
 
 ## Local evidence and current contract
 
-The patched complete native ARM64 candidate passed exact scans and actual trust/staging
-integration locally.
-No native amd64 or GitHub run has been accepted. Earlier candidate archives remain
-unchanged and lack the latest required `deploy.py`; rebuild before current acceptance.
+Current-format native amd64/arm64 packages and exact-image scans passed on GitHub.
+Actual trust/staging integration also passed locally with a complete ARM64 candidate.
+Neither establishes actual initial deployment on a clean VDS.
 See [current status](STATUS.md). Third-party notices/source obligations remain separate
 from the root MIT license; protected production signing is not configured.

@@ -10,10 +10,10 @@ The [product contract](PRODUCT_ALIGNMENT.md) defines the current scope.
 | Storage | Private SQLite/WAL/FULL, exclusive ownership, migration checksums, atomic quota/generations and controller/Agent fencing |
 | Cabinet/API | Password + TOTP setup/login, recovery codes, factor replay protection, encrypted/hash-only secrets, CSRF and persistent attempt limits |
 | Media | Continuous encoder, image/looped-MP4 fallback/return, eight outputs, isolated destination failure and explicit stop |
-| Android | Native cabinet, two-action welcome screen, app-bar navigation, encrypted origin-bound session, SSH pins and setup handoff; build/lint/unit and five emulator tests passed |
+| Android | Native cabinet, two-action welcome screen, app-bar navigation, encrypted origin-bound session, SSH pins and setup handoff; build/lint, nine unit tests, five emulator tests and actual local API contract test passed |
 | Initial installation | Signed download/staging, immutable images, bounded resumable systemd job and preserved configuration; 21 local installer tests passed |
 | Software updates | Independent coordinator, restricted Unix bridge, owner TOTP API/outbox, matching-version/database rollback and emergency-space recovery |
-| Distribution/security | MIT, GitHub checks/native candidate workflows, offline signing/verifier; complete patched local ARM64 candidate scanned with zero HIGH/CRITICAL |
+| Distribution/security | MIT, GitHub checks/native candidate workflows, offline signing/verifier; current-format native GitHub amd64/arm64 packages and exact-image scans passed |
 
 ## Current limitations
 
@@ -25,14 +25,13 @@ The repository is [IMP3RV70R/streamtool-relay](https://github.com/IMP3RV70R/stre
 Production release key/feed and APK release signing are not configured.
 
 Local Linux update/rollback uses controlled certificates and ephemeral keys.
-Earlier candidate archives lack the latest `deploy.py` contract and are not accepted
-as current complete bundles. Scans apply only to their exact images and database date.
+Scans apply only to their exact images and database date.
 
 Native GitHub Linux amd64 source checks, eight-output/image/video recovery and
-image security gates passed. API integration and standalone media smoke passed
-locally after fixing receiver startup and the publisher pixel format.
+image security, API integration and standalone media gates passed. Native amd64
+and arm64 packaging and exact-image scans also passed on GitHub.
 
-Actual SSH/apt/systemd initial deployment, public ACME issuance/renewal, native release bundles,
+Actual SSH/apt/systemd initial deployment, public ACME issuance/renewal, initial deployment of native bundles,
 Selectel capacity, real Twitch ingest and a 24-hour target-host run are unverified.
 The full storage/service fault matrix and independent security audit are not covered.
 Local checks do not establish production readiness.
