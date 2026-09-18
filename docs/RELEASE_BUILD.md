@@ -121,3 +121,23 @@ Actual trust/staging integration also passed locally with a complete ARM64 candi
 Neither establishes actual initial deployment on a clean VDS.
 See [current status](STATUS.md). Third-party notices/source obligations remain separate
 from the root MIT license; protected production signing is not configured.
+
+## Android preview packaging
+
+The reviewed public preview trust and fixed metadata addresses are in
+[`preview-distribution.json`](../infra/release/preview-distribution.json). The
+preview uses native server candidate `0.1.0-candidate.20260918.2` from source
+revision `5010368`. Ordinary Android builds still disable deployment.
+
+`make android-preview` builds/lints a release APK with this pinned trust. Its
+unsigned output is `apps/android/app/build/outputs/apk/release/app-release-unsigned.apk`.
+Sign that APK on the trusted local machine with the external Android keystore;
+never put the keystore or password into Gradle configuration, the repository or
+Actions. Preserve both the Android signer and the external Ed25519 preview seed.
+
+The initial preview manifest supports clean installation only: sequence 1,
+minimum sequence/schema 0, maximum installed schema 0, target SQLite schema 7.
+It does not authorize upgrades of existing installations. Metadata validity is
+bounded to 31 days; expired metadata fails closed. Publishing renewed metadata
+requires a new sequence and immutable release URLs, plus a matching client build.
+The preview does not establish clean-VDS, public ACME or Twitch acceptance.

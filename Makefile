@@ -131,3 +131,7 @@ selfhost-package:
 .PHONY: control-multistream-e2e
 control-multistream-e2e:
 	CONTROL_TEST_MULTISTREAM_ONLY=1 $(MAKE) control-e2e
+
+.PHONY: android-preview
+android-preview:
+	cd apps/android && ./gradlew :app:assembleRelease :app:lintRelease -PinstallerDistribution=$(abspath infra/release/preview-distribution.json)
