@@ -326,6 +326,7 @@ private fun CopyConnectionValue(label: String, value: String, sensitive: Boolean
 @Composable
 private fun Credentials(model: CabinetModel, state: CabinetState) {
     var password by remember { mutableStateOf("") }; var rotation by remember { mutableStateOf(false) }
+    var showKey by remember { mutableStateOf(false) }
     Text("Подключение SRT/RTMP", style = MaterialTheme.typography.titleLarge)
     val srt = state.source?.optString("srt_url").orEmpty()
     val rtmp = state.source?.optString("rtmp_url").orEmpty()
@@ -337,10 +338,10 @@ private fun Credentials(model: CabinetModel, state: CabinetState) {
     Text("Идентификатор источника: $sourceId")
     CopyConnectionValue("Скопировать идентификатор", sourceId)
     if (state.sourceKey.isNotBlank()) {
-        Text("Ключ источника: ${state.sourceKey}")
+        Text("Ключ источника: ${if (showKey) state.sourceKey else "••••••••"}")
         CopyConnectionValue("Скопировать ключ источника", state.sourceKey, sensitive = true)
-        TextButton(onClick = { model.hideKey() }) { Text("Скрыть ключ") }
-    } else Text("Используйте сохранённый ключ: сервер не выдаёт его повторно.")
+        TextButton(onClick = { showKey = !showKey }) { Text(if (showKey) "Скрыть ключ" else "Показать ключ") }
+    } else Text("Этот источник создан в старой версии без сохранения ключа. Чтобы сохранить новый ключ на сервере, завершите эфир и смените ключ источника.")
     Text("Для SRT вставьте Stream ID, для RTMP — ключ трансляции. Сервер вставляется отдельно.")
     CopyConnectionValue("Скопировать SRT Stream ID", if (state.sourceKey.isNotBlank()) "publish:$sourceId:publisher:${state.sourceKey}" else "", sensitive = true)
     CopyConnectionValue("Скопировать RTMP-ключ трансляции", if (state.sourceKey.isNotBlank()) "$sourceId?user=publisher&pass=${state.sourceKey}" else "", sensitive = true)

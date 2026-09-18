@@ -63,3 +63,10 @@ previously disabled owner sources without rotating keys. The Android changes are
 download/hash and the unchanged signing identity passed verification. Current-source
 web/backend changes and migration 000008 are not in the server .3 preview. Android build/lint/unit tests,
 API/storage tests and five browser checks passed locally.
+
+Current source stores source credentials encrypted with the existing key provider
+and source-bound AEAD, retaining the ingest authentication hash. Authenticated
+owner GET/POST can retrieve the same key with no-store responses. Creation and
+rotation commit the hash and encrypted credential atomically. Migration 000009
+preserves existing hash-only keys; those require explicit owner rotation before
+repeat retrieval is possible. This change is not in published preview bundles/APKs.

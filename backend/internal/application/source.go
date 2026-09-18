@@ -1,13 +1,16 @@
 package application
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"streamtool-relay/internal/auth"
+	appcrypto "streamtool-relay/internal/crypto"
 	"strings"
 )
 
@@ -62,6 +65,7 @@ func (a *API) sourceRoutes(w http.ResponseWriter, r *http.Request, account strin
 
 // A source is provisioned once per account. Reopening the page never rotates its key.
 func (a *API) source(w http.ResponseWriter, r *http.Request, account string) {
+	w.Header().Set("Cache-Control", "no-store")
 	if r.URL.Path == "/v1/me/source/credential" && r.Method != "POST" {
 		problem(w, 405, "method not allowed")
 		return
@@ -77,11 +81,17 @@ func (a *API) source(w http.ResponseWriter, r *http.Request, account string) {
 	ctx := r.Context()
 	if r.Method == "GET" {
 		var id string
-		if err := a.Store.Pool.QueryRow(ctx, `SELECT s.id FROM account_sources a JOIN streams s ON s.id=a.stream_id WHERE a.account_id=?1`, account).Scan(&id); errors.Is(err, sql.ErrNoRows) {
+		var encrypted []byte
+		if err := a.Store.Pool.QueryRow(ctx, `SELECT s.id,COALESCE(c.secret,x'') FROM account_sources a JOIN streams s ON s.id=a.stream_id LEFT JOIN source_credentials c ON c.source_id=s.id WHERE a.account_id=?1`, account).Scan(&id, &encrypted); errors.Is(err, sql.ErrNoRows) {
 			problem(w, 404, "source not found")
 			return
 		} else if err != nil {
 			problem(w, 503, "source unavailable")
+			return
+		}
+		key, err := a.openSourceKey(ctx, id, encrypted)
+		if err != nil {
+			problem(w, 503, "source credential unavailable")
 			return
 		}
 		var delivery bool
@@ -89,7 +99,7 @@ func (a *API) source(w http.ResponseWriter, r *http.Request, account string) {
 			problem(w, 503, "source unavailable")
 			return
 		}
-		writeJSON(w, 200, map[string]any{"source_id": id, "srt_url": a.PublicSRTURL, "rtmp_url": a.PublicRTMPURL, "media_configured": a.MediaConfigured, "delivery_configured": delivery})
+		writeJSON(w, 200, map[string]any{"source_id": id, "ingest_key": key, "srt_url": a.PublicSRTURL, "rtmp_url": a.PublicRTMPURL, "media_configured": a.MediaConfigured, "delivery_configured": delivery})
 		return
 	}
 	rotate := r.URL.Path == "/v1/me/source/credential"
@@ -204,6 +214,29 @@ func (a *API) source(w http.ResponseWriter, r *http.Request, account string) {
 		}
 	}
 
+	if key != "" {
+		encrypted, err := a.sealSourceKey(ctx, id, key)
+		if err != nil {
+			problem(w, 503, "source credential unavailable")
+			return
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO source_credentials(source_id,secret) VALUES(?1,?2) ON CONFLICT(source_id) DO UPDATE SET secret=excluded.secret`, id, encrypted); err != nil {
+			problem(w, 503, "source credential unavailable")
+			return
+		}
+	} else {
+		var encrypted []byte
+		err = tx.QueryRow(ctx, `SELECT secret FROM source_credentials WHERE source_id=?1`, id).Scan(&encrypted)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			problem(w, 503, "source credential unavailable")
+			return
+		}
+		key, err = a.openSourceKey(ctx, id, encrypted)
+		if err != nil {
+			problem(w, 503, "source credential unavailable")
+			return
+		}
+	}
 	if tx.Commit(ctx) != nil {
 		problem(w, 503, "source unavailable")
 		return
@@ -215,4 +248,29 @@ func (a *API) source(w http.ResponseWriter, r *http.Request, account string) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"source_id": id, "ingest_key": key, "srt_url": a.PublicSRTURL, "rtmp_url": a.PublicRTMPURL, "media_configured": a.MediaConfigured, "delivery_configured": delivery})
+}
+
+func (a *API) sealSourceKey(ctx context.Context, id, key string) ([]byte, error) {
+	if a.Keys == nil {
+		return nil, errors.New("key unavailable")
+	}
+	e, err := appcrypto.Encrypt(ctx, a.Keys, []byte(key), []byte("source-key:"+id))
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(e)
+}
+func (a *API) openSourceKey(ctx context.Context, id string, encrypted []byte) (string, error) {
+	if len(encrypted) == 0 {
+		return "", nil
+	} // A previously hash-only credential is not rotated.
+	if a.Keys == nil {
+		return "", errors.New("key unavailable")
+	}
+	var e appcrypto.Envelope
+	if err := json.Unmarshal(encrypted, &e); err != nil {
+		return "", err
+	}
+	key, err := appcrypto.Decrypt(ctx, a.Keys, e, []byte("source-key:"+id))
+	return string(key), err
 }

@@ -82,6 +82,11 @@ func TestUsersDatabase(t *testing.T) {
 	if w := call("GET", "/v1/me", nil, c2); w.Code != 401 {
 		t.Fatal("foreign session admitted")
 	}
+	for _, cookie := range []*http.Cookie{nil, c2} {
+		if w := call("GET", "/v1/me/source", nil, cookie); w.Code != 401 {
+			t.Fatal("source key exposed without owner session", w.Code)
+		}
+	}
 	for _, path := range []string{"/v1/me/channels", "/v1/me/channels/unused", "/v1/me/tools", "/v1/me/source/title", "/v1/me/source/destinations"} {
 		if w := call("GET", path, nil, c1); w.Code != 404 {
 			t.Fatal("removed route active", path, w.Code)
@@ -103,7 +108,7 @@ func TestUsersDatabase(t *testing.T) {
 	if result.SourceID == "" {
 		t.Fatal("no source ID")
 	}
-	if w := call("GET", "/v1/me/source", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), `"source_id":"`+result.SourceID+`"`) || strings.Contains(w.Body.String(), result.Key) {
+	if w := call("GET", "/v1/me/source", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), `"source_id":"`+result.SourceID+`"`) || !strings.Contains(w.Body.String(), result.Key) {
 		t.Fatalf("source read route failed: %d %s", w.Code, w.Body.String())
 	}
 	var connectionID, sessionID string
@@ -121,7 +126,7 @@ func TestUsersDatabase(t *testing.T) {
 	if err = s.Pool.QueryRow(ctx, `SELECT desired,phase,operator_stopped FROM stream_sessions WHERE id=?1`, sessionID).Scan(&desired, &phase, &operatorStopped); err != nil || phase != "LIVE" || operatorStopped {
 		t.Fatal("rejected routing disable affected active session", desired, phase, operatorStopped, err)
 	}
-	if w := call("POST", "/v1/me/source", nil, c1); w.Code != 200 || strings.Contains(w.Body.String(), result.Key) || !strings.Contains(w.Body.String(), result.SourceID) {
+	if w := call("POST", "/v1/me/source", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), result.Key) || !strings.Contains(w.Body.String(), result.SourceID) {
 		t.Fatalf("idempotent provisioning changed source identity: %d %s", w.Code, w.Body.String())
 	}
 	if w := call("GET", "/v1/me/source/slate", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), `"on_source_loss":true`) || !strings.Contains(w.Body.String(), `"forced":false`) {
@@ -145,7 +150,7 @@ func TestUsersDatabase(t *testing.T) {
 	if w := call("POST", "/v1/accounts", nil, c1); w.Code != 401 {
 		t.Fatal("user gained operator access")
 	}
-	if w := call("POST", "/v1/me/source", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), `"source_id":"`+result.SourceID+`"`) || strings.Contains(w.Body.String(), result.Key) {
+	if w := call("POST", "/v1/me/source", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), `"source_id":"`+result.SourceID+`"`) || !strings.Contains(w.Body.String(), result.Key) {
 		t.Fatalf("source provisioning route failed: %d %s", w.Code, w.Body.String())
 	}
 	if w := call("POST", "/v1/me/camera", nil, c1); w.Code != 404 {

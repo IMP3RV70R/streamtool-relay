@@ -14,7 +14,7 @@ See [authentication protection](CABINET_SECURITY.md).
 ## Stream controls
 
 - The source is provisioned automatically after login; routing is always available.
-- Save source credentials when first issued. Rotation requires password confirmation.
+- Copy source credentials when needed; the key is stored encrypted on the server. Rotation requires password confirmation.
 - Configure outputs, toggle them, retry independently or remove them. Disabled
   outputs still occupy a slot; all outputs share one quality and fallback.
 - Use the default 720p30/3000 kbps or change quality before streaming. Source size/FPS

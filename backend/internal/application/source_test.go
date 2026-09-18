@@ -56,6 +56,9 @@ func TestSourceProvisioning(t *testing.T) {
 			id = c["source_id"].(string)
 		}
 		if k := c["ingest_key"].(string); k != "" {
+			if key != "" && key != k {
+				t.Fatal("concurrent provisioning changed key")
+			}
 			key = k
 			issued++
 		}
@@ -89,8 +92,8 @@ func TestSourceProvisioning(t *testing.T) {
 		}
 	}
 
-	if issued != 1 {
-		t.Fatal("key must be issued once", issued)
+	if issued != 4 {
+		t.Fatal("key must be recoverable on every request", issued)
 	}
 	_, oldHash, err := s.GetStream(ctx, id)
 	if err != nil || !auth.VerifyKey(oldHash, key) {
@@ -131,4 +134,71 @@ func TestSourceProvisioning(t *testing.T) {
 	if _, err = s.ObserveIngest(ctx, "test-edge", "stale", id, "srt", true, time.Now(), time.Second, oldHash); err == nil {
 		t.Fatal("stale in-flight authorization admitted after rotation")
 	}
+	var rotated map[string]any
+	w = httptest.NewRecorder()
+	a.source(w, httptest.NewRequest("GET", "/v1/me/source", nil), account)
+	if w.Code != 200 || w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("credential read/cache policy", w.Code)
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &rotated); err != nil {
+		t.Fatal(err)
+	}
+	current := rotated["ingest_key"].(string)
+	if current == "" || current == key || !auth.VerifyKey(newHash, current) {
+		t.Fatal("retrieved key does not match current ingest hash")
+	}
+	var encrypted []byte
+	if err := s.Pool.QueryRow(ctx, `SELECT secret FROM source_credentials WHERE source_id=?1`, id).Scan(&encrypted); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encrypted), current) {
+		t.Fatal("plaintext source key stored")
+	}
+	if _, err := a.openSourceKey(ctx, operatorStream.ID, encrypted); err == nil {
+		t.Fatal("credential not bound to source identity")
+	}
+	s.Close()
+	reopened, err := persistence.Open(ctx, database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	a.Store = reopened
+	for _, method := range []string{"GET", "POST"} {
+		w = httptest.NewRecorder()
+		a.source(w, httptest.NewRequest(method, "/v1/me/source", nil), account)
+		if w.Code != 200 || !strings.Contains(w.Body.String(), current) {
+			t.Fatal("credential not recoverable after restart", method, w.Code)
+		}
+	}
+	var env appcrypto.Envelope
+	if err := json.Unmarshal(encrypted, &env); err != nil {
+		t.Fatal(err)
+	}
+	env.Ciphertext[0] ^= 1
+	corrupt, err := json.Marshal(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reopened.Pool.Exec(ctx, `UPDATE source_credentials SET secret=?2 WHERE source_id=?1`, id, corrupt); err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+	a.source(w, httptest.NewRequest("GET", "/v1/me/source", nil), account)
+	if w.Code != 503 || strings.Contains(w.Body.String(), current) {
+		t.Fatal("tampered credential did not fail closed")
+	}
+	if _, err := reopened.Pool.Exec(ctx, `DELETE FROM source_credentials WHERE source_id=?1`, id); err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+	a.source(w, httptest.NewRequest("POST", "/v1/me/source", nil), account)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"ingest_key":""`) {
+		t.Fatal("historical hash-only credential was rotated")
+	}
+	_, preserved, err := reopened.GetStream(ctx, id)
+	if err != nil || !auth.VerifyKey(preserved, current) {
+		t.Fatal("historical key changed without owner request")
+	}
+
 }

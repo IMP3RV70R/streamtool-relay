@@ -106,7 +106,7 @@ async function loadSource() {
     updateSourceCopyButtons();
     $('srt-hint').textContent = 'publish:' + source.source_id + ':publisher:КЛЮЧ';
     $('source-state').textContent = !source.media_configured ? 'Приём и передача видео на этом сервере не включены.' : !source.delivery_configured ? 'Источник настроен. Добавьте или включите выход для передачи.' : 'Источник и выход настроены. Начните передачу с источника для начала эфира.';
-    $('source-state').textContent += $('ingest-key').value ? ' Сохраните ключ сейчас: после перезагрузки он больше не выдаётся.' : ' Используйте сохранённый ключ. Если он потерян, смените его ниже.';
+    $('source-state').textContent += $('ingest-key').value ? ' Ключ хранится зашифрованным на сервере и доступен при следующем входе.' : ' Для старого источника без сохранённого ключа смените ключ ниже после завершения эфира.';
     await loadMedia(); await loadFallback(); await loadOutputs(); await refresh();
   } catch (error) {
     throw error;
@@ -186,7 +186,7 @@ async function loadOutputs() {
   if (!selected) return;
   const source = selected, version = epoch, list = await api('/me/source/outputs');
   if (source !== selected || version !== epoch) return;
-  if (mediaConfigured) $('source-state').textContent = (list.some(destination => destination.enabled) ? 'Источник и выход настроены. Начните передачу с источника для начала эфира.' : 'Источник настроен. Добавьте или включите выход для передачи.') + ($('ingest-key').value ? ' Сохраните ключ сейчас: после перезагрузки он больше не выдаётся.' : ' Используйте сохранённый ключ.');
+  if (mediaConfigured) $('source-state').textContent = (list.some(destination => destination.enabled) ? 'Источник и выход настроены. Начните передачу с источника для начала эфира.' : 'Источник настроен. Добавьте или включите выход для передачи.') + ($('ingest-key').value ? ' Ключ хранится зашифрованным на сервере и доступен при следующем входе.' : ' Для старого источника без сохранённого ключа смените ключ после завершения эфира.');
   $('outputs-message').textContent = list.length + ' из 8 выходов. Общее качество и заглушка; подключения независимы.';
   $('output-form').hidden = list.length >= 8 && !outputEditing;
   $('output-form-title').hidden = list.length >= 8 && !outputEditing;

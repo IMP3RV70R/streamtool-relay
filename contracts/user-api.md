@@ -12,8 +12,10 @@ image/video fallback, up to eight outputs, optional output quality and first-own
 [docs/CABINET.md](../docs/CABINET.md#основной-owner-api).
 
 `POST /v1/me/source` idempotently provisions the always-available account source. Both clients do this
-automatically after authentication. The key is returned only on first creation;
-repeat requests preserve the key, outputs and active session. There is no source
+automatically after authentication. GET and POST return the encrypted-at-rest source key to its authenticated owner
+with `Cache-Control: no-store`; repeat requests preserve the key, outputs and
+active session. Historical hash-only sources return an empty key until the owner
+explicitly rotates it; migration never silently replaces credentials. There is no source
 disable/delete route. Enabled outputs receive media when a source session starts.
 
 `GET /v1/me/source/status` includes `can_stop` and `stop_block_reason`:

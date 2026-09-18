@@ -83,8 +83,11 @@ then new TOTP confirmation, revoking old sessions/recovery codes.
 Preserve owner/password/media/key data during recovery. Offline SSH owner recovery
 revokes authentication and requires fresh TOTP enrollment; it does not rotate media
 or encryption keys or introduce password-only HTTP login. Setup remains a singleton.
-Source keys are hash-only; output keys are encrypted/write-only. Secrets must not
-appear in logs, URLs, read responses or process arguments.
+Source keys retain a hash for ingest authentication and an encrypted copy for
+repeat retrieval by the authenticated owner. Output keys are encrypted/write-only.
+Source credential responses require the owner session and must not be cached.
+Secrets must not appear in logs, control-plane URLs, public/operator read responses
+or process arguments.
 
 ## Installation and updates
 

@@ -122,10 +122,9 @@ class CabinetModel(private val sessions: SessionStore): ViewModel() {
         if (!state.authenticated || state.replacing || state.source == null || !gate.tryLock()) return
         try { readStatus() } catch (e: CancellationException) { throw e } catch (e: Exception) { failure(e) } finally { gate.unlock() }
     }
-    fun hideKey() { state = state.copy(sourceKey = "") }
     fun rotateKey(password: String) = action {
         val result = client().json("/v1/me/source/credential", "POST", JSONObject().put("password", password))
-        state = state.copy(sourceKey = result.getString("ingest_key"), message = "Сохраните ключ сейчас и замените его в настройках источника.")
+        state = state.copy(sourceKey = result.getString("ingest_key"), message = "Ключ сохранён на сервере. Замените его в настройках источника.")
     }
     fun stop() = action { client().json("/v1/me/source/stop", "POST"); refresh(); state = state.copy(message = "Команда завершения отправлена.") }
     fun slate(auto: Boolean, forced: Boolean) = action {

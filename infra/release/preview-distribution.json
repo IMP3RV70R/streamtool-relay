@@ -1,7 +1,7 @@
 {
   "artifact_origin": "https://github.com",
   "channel": "preview",
-  "manifest_url": "https://github.com/IMP3RV70R/streamtool-relay/releases/download/0.1.0-candidate.20260918.3/manifest.json",
+  "manifest_url": "https://github.com/IMP3RV70R/streamtool-relay/releases/download/0.1.0-candidate.20260918.4/manifest.json",
   "public_key": "KORqrunhiL0tRxGmB+2Hfn5jJ9LIIJNNCgbFxQ8XuoY=",
-  "signature_url": "https://github.com/IMP3RV70R/streamtool-relay/releases/download/0.1.0-candidate.20260918.3/manifest.sig"
+  "signature_url": "https://github.com/IMP3RV70R/streamtool-relay/releases/download/0.1.0-candidate.20260918.4/manifest.sig"
 }

@@ -23,7 +23,7 @@ complete target-server flow remain unaccepted. See [current status](STATUS.md).
    credentials again. Existing installations offer connection/resume, not blind reset.
 5. After actual readiness, open the same-IP HTTPS cabinet through the native handoff.
    Choose a separate owner password, save ten recovery codes and confirm TOTP.
-6. Enable routing, save the one-time source credentials, add a Twitch ingest URL/key
+6. Copy the automatically prepared source credentials, add a Twitch ingest URL/key
    and optionally select image/looped-video fallback. Quality defaults are usable.
 
 The steps describe the configured implementation. An unconfigured debug APK cannot

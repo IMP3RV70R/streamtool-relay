@@ -74,8 +74,7 @@ later setup attempts cannot create another owner. The
 setup code remains in `/opt/streamtool/secrets/setup_token` for operator recovery;
 it cannot create another account after setup. Public registration and billing are absent.
 
-The cabinet provisions the source automatically. Save its key when first issued; it is not
-recoverable from the database. Add up to eight destinations with their server URLs and write-only stream keys.
+The cabinet provisions the source automatically. Its key is stored encrypted and can be copied on subsequent owner logins. Add up to eight destinations with their server URLs and write-only stream keys.
 Each destination retries independently; disabling it retains its settings and still
 occupies a slot. Deleting it frees a slot. All destinations share one encoder,
 quality and fallback. Defaults are 720p30/3000 kbps, immediately usable. Optional output quality is
