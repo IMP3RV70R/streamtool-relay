@@ -36,7 +36,9 @@ is not implemented by this CI workflow. No workflow has production signing or pu
 sign or publish releases. The existing pinned-key, expiry, hash/size and monotonic
 sequence checks remain authoritative; GitHub release metadata alone is not trust.
 
-Local workflow/shell validation is not a successful remote Actions run. No remote execution/publication occurred here.
+The first GitHub Linux amd64 run passed checks, acceptance and image security.
+Integration/standalone media fixtures initially failed; corrected receiver startup
+and I420 source format passed locally. No production release has been published.
 
 A separate [native candidate workflow](../.github/workflows/release-build.yml) now
 provides manual read-only amd64/arm64 packaging and exact exported-image scanning.

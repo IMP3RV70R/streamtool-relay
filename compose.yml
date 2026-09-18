@@ -43,7 +43,7 @@ services:
 
   publisher:
     build: {context: ./backend, target: fixture-publisher}
-    command: ["videotestsrc", "is-live=true", "!", "video/x-raw,width=1280,height=720,framerate=30/1", "!", "x264enc", "tune=zerolatency", "speed-preset=ultrafast", "bitrate=3000", "key-int-max=60", "!", "h264parse", "!", "mpegtsmux", "name=mux", "!", "srtsink", "uri=srt://edge:8890?streamid=publish:fixture", "audiotestsrc", "is-live=true", "!", "audioconvert", "!", "avenc_aac", "bitrate=160000", "!", "aacparse", "!", "mux."]
+    command: ["videotestsrc", "is-live=true", "!", "video/x-raw,format=I420,width=1280,height=720,framerate=30/1", "!", "x264enc", "tune=zerolatency", "speed-preset=ultrafast", "bitrate=3000", "key-int-max=60", "!", "h264parse", "!", "mpegtsmux", "name=mux", "!", "srtsink", "uri=srt://edge:8890?streamid=publish:fixture", "audiotestsrc", "is-live=true", "!", "audioconvert", "!", "avenc_aac", "bitrate=160000", "!", "aacparse", "!", "mux."]
     depends_on: [edge]
     restart: unless-stopped
 

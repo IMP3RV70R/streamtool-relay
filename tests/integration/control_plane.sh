@@ -3,9 +3,10 @@ set -eu
 compose="docker compose -f compose.yml"
 tmp="$(mktemp -d)"
 ./tests/control/certificates.sh
-cleanup(){ rm -r "$tmp"; $compose stop api >/dev/null 2>&1 || true; }
+cleanup(){ rm -r "$tmp"; $compose stop api receiver >/dev/null 2>&1 || true; }
 trap cleanup EXIT INT TERM
-$compose up --build -d api
+# Destination validation resolves receiver DNS even in development mode.
+$compose up --build -d api receiver
 deadline=$(( $(date +%s)+60 ));until curl -H "Authorization: Bearer local-operator-token-development-only" -fsS http://localhost:${API_PORT:-8080}/healthz >/dev/null;do [ "$(date +%s)" -lt "$deadline" ]||{ $compose logs api;exit 1;};sleep 1;done
 
 curl -H "Authorization: Bearer local-operator-token-development-only" -fsS -X POST -H 'Content-Type: application/json' --data '{"name":"integration-account"}' http://localhost:${API_PORT:-8080}/v1/accounts > "$tmp/account.json"

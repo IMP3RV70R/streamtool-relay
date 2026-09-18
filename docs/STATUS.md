@@ -28,7 +28,11 @@ Local Linux update/rollback uses controlled certificates and ephemeral keys.
 Earlier candidate archives lack the latest `deploy.py` contract and are not accepted
 as current complete bundles. Scans apply only to their exact images and database date.
 
-Actual SSH/apt/systemd initial deployment, public ACME issuance/renewal, native amd64,
+Native GitHub Linux amd64 source checks, eight-output/image/video recovery and
+image security gates passed. API integration and standalone media smoke passed
+locally after fixing receiver startup and the publisher pixel format.
+
+Actual SSH/apt/systemd initial deployment, public ACME issuance/renewal, native release bundles,
 Selectel capacity, real Twitch ingest and a 24-hour target-host run are unverified.
 The full storage/service fault matrix and independent security audit are not covered.
 Local checks do not establish production readiness.

@@ -48,7 +48,8 @@ and Grype upstream gates with **0 HIGH / 0 CRITICAL** and detected both intentio
 vulnerable source controls. Eleven Medium package findings remain for review.
 This is point-in-time evidence for those exact images, not absence of vulnerabilities
 or acceptance of every later build. Current bundles need rebuilding for the latest
-installer contract. Native amd64 and production provenance/signing remain open.
+installer contract. The GitHub Linux amd64 image gate also passed; a complete current native release
+bundle and production provenance/signing are not accepted.
 
 The same worker passed eight-output 720p30 fallback/recovery and separate 1080p60
 moving-MP4 loss/return/stop checks. Short local ARM64 CPU/RAM samples do not establish
