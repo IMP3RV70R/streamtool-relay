@@ -5,7 +5,7 @@ Its host allowlist is clean Debian 13 or Ubuntu 24.04. A purchased domain is not
 required by the protocol.
 
 The protocol is implemented and enabled in the release-signed
-[preview APK](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.2). It remains **disabled in default builds** without distribution configuration. Real SSH/apt/systemd/reboot/public ACME and the
+[preview APK](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.3). It remains **disabled in default builds** without distribution configuration. Real SSH/apt/systemd/reboot/public ACME and the
 complete target-server flow remain unaccepted. See [current status](STATUS.md).
 
 ## User flow
@@ -30,8 +30,7 @@ The steps describe the configured implementation. An unconfigured debug APK cann
 deploy the application. Distribution build configuration is in the
 [Android README](../apps/android/README.md).
 
-The changed-key confirmation flow is implemented in the current source and locally
-verified; it is not included in the published 0.3.1 preview APK.
+The changed-key confirmation flow is included in the signed 0.3.2 preview APK.
 
 ## Trust and credentials
 
@@ -120,8 +119,7 @@ Bootstrap accepts public IPv4/IPv6 and optional DNS. Caddy uses public ACME with
 origins use brackets. The source configuration uses an unbracketed
 `TLS_SERVER_NAME` as Caddy `default_sni` so IP clients without SNI receive the
 correct certificate. Actual proxy TLS tests cover IPv4/IPv6 without SNI, DNS and
-rejection of a wrong certificate identity. This configuration fix is not included
-in the currently published preview bundle. No internal issuer or TLS-verification bypass substitutes for
+rejection of a wrong certificate identity. This configuration is included in the current signed preview bundle. No internal issuer or TLS-verification bypass substitutes for
 public issuance failure. IP certificate issuance was observed in target-host logs; complete HTTPS readiness,
 renewal/reload and expiry recovery still require real-host acceptance. See [host requirements](SELFHOST.md).
 

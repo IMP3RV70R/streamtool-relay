@@ -127,8 +127,10 @@ from the root MIT license; protected production signing is not configured.
 
 The reviewed public preview trust and fixed metadata addresses are in
 [`preview-distribution.json`](../infra/release/preview-distribution.json). The
-preview uses native server candidate `0.1.0-candidate.20260918.2` from source
-revision `5010368`. Ordinary Android builds still disable deployment.
+preview uses native server candidate `0.1.0-candidate.20260918.3` from source
+revision `6e3b888`; the signed Android 0.3.2 APK was built from `5460db8`.
+The only difference between those revisions is CI TLS fixture permissions.
+Ordinary Android builds still disable deployment.
 
 `make android-preview` builds/lints a release APK with this pinned trust. Its
 unsigned output is `apps/android/app/build/outputs/apk/release/app-release-unsigned.apk`.
@@ -136,14 +138,14 @@ Sign that APK on the trusted local machine with the external Android keystore;
 never put the keystore or password into Gradle configuration, the repository or
 Actions. Preserve both the Android signer and the external Ed25519 preview seed.
 
-The initial preview manifest supports clean installation only: sequence 1,
+The initial preview manifest supports clean installation only: sequence 2,
 minimum sequence/schema 0, maximum installed schema 0, target SQLite schema 7.
 It does not authorize upgrades of existing installations. Metadata validity is
 bounded to 31 days; expired metadata fails closed. Publishing renewed metadata
 requires a new sequence and immutable release URLs, plus a matching client build.
 The preview does not establish clean-VDS, public ACME or Twitch acceptance.
 
-The published [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.2) contains the release-signed APK, both native
+The published [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.3) contains the release-signed APK, both native
 bundles, manifest/signature, SHA256SUMS and exact-image scanner reports. Anonymous
 metadata and both bundle downloads passed the actual installer redirect/hash policy.
 The independent verifier accepted signature and safe staging of both downloaded

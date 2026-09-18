@@ -33,7 +33,7 @@ AGP/Compose dependencies. From this directory:
 ```
 
 Install the debug APK with `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
-A release-signed [preview APK](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.2) includes pinned signed installation distribution.
+A release-signed [preview APK](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.3) includes pinned signed installation distribution.
 Default development builds remain unconfigured. The existing `dev.streamtool.app`
 application ID and Keystore alias are retained; displayed product name is
 `streamtool-relay`. This does not rotate stored encryption keys.

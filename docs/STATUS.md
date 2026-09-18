@@ -22,7 +22,7 @@ release distribution configuration is supplied. Dependency preparation is availa
 Owner update routes are disabled by default. Graphical update controls, public
 update-feed discovery and a landing-page browser installer are absent.
 The repository is [IMP3RV70R/streamtool-relay](https://github.com/IMP3RV70R/streamtool-relay).
-The signed [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.2) includes amd64/arm64 bundles, an initial-install-only
+The signed [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.3) includes amd64/arm64 bundles, an initial-install-only
 manifest and a release-signed Android APK with pinned preview trust. Its metadata
 expires on 19 October 2026. The ordinary builds remain unconfigured; no stable
 production release or public update feed is configured.
@@ -48,6 +48,5 @@ Local checks do not establish production readiness.
 
 The current source fixes TLS certificate selection for IP clients without SNI via
 Caddy `default_sni`. Real proxy tests reproduce the previous handshake failure and
-verify IPv4/IPv6/DNS with normal certificate validation. The published preview bundle
-does not include this fix. Target-host logs show successful IP certificate issuance;
+verify IPv4/IPv6/DNS with normal certificate validation. The published preview bundle includes this fix. Target-host logs show successful IP certificate issuance;
 complete READY/owner/stream acceptance and public renewal remain unaccepted.
