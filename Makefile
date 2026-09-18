@@ -8,6 +8,7 @@ check: test vet
 	python3 tests/security/repository_hygiene.py
 	python3 tests/selfhost/verify.py
 	python3 tests/selfhost/public_address_test.py
+	python3 tests/selfhost/public_ip_tls_test.py
 	python3 tests/selfhost/installer_handoff_test.py
 	python3 tests/selfhost/archive_test.py
 	python3 tests/selfhost/updater_test.py

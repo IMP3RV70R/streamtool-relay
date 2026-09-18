@@ -43,10 +43,10 @@ data class SshTarget(val host: String, val port: Int) {
     }
 }
 
-class SshHostIdentity(val key: ByteArray): Exception() {
+open class SshHostIdentity(val key: ByteArray): Exception() {
     val fingerprint: String get() = "SHA256:" + Base64.getEncoder().withoutPadding().encodeToString(MessageDigest.getInstance("SHA-256").digest(key))
 }
-class SshIdentityChanged: Exception()
+class SshIdentityChanged(key: ByteArray): SshHostIdentity(key.copyOf())
 
 internal fun hostKeyDecision(pinned: ByteArray?, received: ByteArray): Int = when {
     pinned == null -> HostKeyRepository.NOT_INCLUDED
@@ -72,7 +72,7 @@ class SshConnection(private val target: SshTarget, private val pinnedKey: ByteAr
         jsch.hostKeyRepository = object : HostKeyRepository {
             override fun check(host: String?, key: ByteArray): Int {
                 val decision = hostKeyDecision(pinnedKey, key)
-                if (decision == HostKeyRepository.NOT_INCLUDED) observed = key.copyOf()
+                if (decision != HostKeyRepository.OK) observed = key.copyOf()
                 if (decision == HostKeyRepository.CHANGED) changed = true
                 return decision
             }
@@ -92,7 +92,7 @@ class SshConnection(private val target: SshTarget, private val pinnedKey: ByteAr
         if (pinnedKey != null && password != null) current.setPassword(password)
         try { current.connect(15000) } catch (e: Exception) {
             close()
-            if (changed) throw SshIdentityChanged()
+            if (changed) throw SshIdentityChanged(requireNotNull(observed))
             observed?.let { throw SshHostIdentity(it) }
             throw e
         }

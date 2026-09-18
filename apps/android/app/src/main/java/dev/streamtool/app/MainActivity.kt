@@ -155,11 +155,21 @@ private fun SshPreparation(model: InstallationModel, connected: (String, String)
         Button(onClick = { model.configure(ip, password); password = "" }, enabled = !state.busy && ip.isNotBlank() && password.isNotBlank()) { Text("Продолжить") }
     } else {
         Text(state.target.identity)
-        Text(state.fingerprint)
         if (state.needsTrust) {
-            Text("Сверьте отпечаток SSH с данными провайдера. Пароль отправится только после подтверждения.")
-            Button(onClick = { model.trust() }) { Text("Подтвердить сервер") }
-        }
+            val changed = state.previousFingerprint.isNotBlank()
+            if (changed) {
+                Text("SSH-ключ сервера изменился", style = MaterialTheme.typography.titleMedium)
+                Text("Это возможно после переустановки VDS. Сверьте новый отпечаток в консоли провайдера перед продолжением.")
+                Text("Предыдущий: ${state.previousFingerprint}")
+                Text("Новый: ${state.fingerprint}")
+            } else {
+                Text(state.fingerprint)
+                Text("Сверьте отпечаток SSH в консоли провайдера.")
+            }
+            Text("Пароль отправится только после подтверждения ключа.")
+            Button(onClick = { model.trust() }, enabled = !state.busy) { Text(if (changed) "Подтвердить новый ключ" else "Подтвердить сервер") }
+            TextButton(onClick = { password = ""; model.reset() }, enabled = !state.busy) { Text("Не подтверждать") }
+        } else Text(state.fingerprint)
         if (state.trusted && !state.busy && !state.sshPasswordAvailable) {
             Field("Пароль root для SSH", password, { password = it }, secret = true)
             if (state.report == null && state.preparation == null) {

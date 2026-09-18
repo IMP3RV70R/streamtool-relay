@@ -14,7 +14,9 @@ complete target-server flow remain unaccepted. See [current status](STATUS.md).
 2. Enter the public IP/root password. Default SSH port is 22; use `IP:port` or
    `[IPv6]:port` for another port. There is no separate port or connection-test screen.
 3. Confirm the first-use SSH host fingerprint. Pins are bound to canonical IP/port;
-   a changed key is rejected before sending credentials. Read-only host checks run
+   a changed key shows old/new fingerprints and can be explicitly confirmed after
+   verification, allowing setup after a VDS reinstall. Credentials are withheld
+   until confirmation; rejection preserves the existing pin. Read-only host checks run
    within setup and identify unsupported/conflicting hosts.
 4. Review the installation summary and start the fixed host job. Progress is read
    from its journal; reconnect attaches to the same job. A fresh connection needs
@@ -27,6 +29,9 @@ complete target-server flow remain unaccepted. See [current status](STATUS.md).
 The steps describe the configured implementation. An unconfigured debug APK cannot
 deploy the application. Distribution build configuration is in the
 [Android README](../apps/android/README.md).
+
+The changed-key confirmation flow is implemented in the current source and locally
+verified; it is not included in the published 0.3.1 preview APK.
 
 ## Trust and credentials
 
@@ -112,9 +117,13 @@ These checks do not establish that Twitch received a real stream.
 
 Bootstrap accepts public IPv4/IPv6 and optional DNS. Caddy uses public ACME with
 `shortlived` for IP and `tlsserver` for DNS, persisting renewal state. IPv6 HTTPS
-origins use brackets. No internal issuer or TLS-verification bypass substitutes for
-public issuance failure. Public challenge reachability, issuance/renewal/reload and
-expiry recovery still require real-host acceptance. See [host requirements](SELFHOST.md).
+origins use brackets. The source configuration uses an unbracketed
+`TLS_SERVER_NAME` as Caddy `default_sni` so IP clients without SNI receive the
+correct certificate. Actual proxy TLS tests cover IPv4/IPv6 without SNI, DNS and
+rejection of a wrong certificate identity. This configuration fix is not included
+in the currently published preview bundle. No internal issuer or TLS-verification bypass substitutes for
+public issuance failure. IP certificate issuance was observed in target-host logs; complete HTTPS readiness,
+renewal/reload and expiry recovery still require real-host acceptance. See [host requirements](SELFHOST.md).
 
 The fixed root command reads private setup authority over authenticated SSH only
 if no owner exists; an installer journal must be SUCCEEDED. Android accepts only

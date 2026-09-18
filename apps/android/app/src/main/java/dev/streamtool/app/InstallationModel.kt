@@ -16,7 +16,7 @@ import java.util.Base64
 
 data class InstallationState(
     val target: SshTarget? = null, val fingerprint: String = "", val needsTrust: Boolean = false,
-    val trusted: Boolean = false, val busy: Boolean = false, val message: String = "",
+    val previousFingerprint: String = "", val trusted: Boolean = false, val busy: Boolean = false, val message: String = "",
     val diagnostics: JSONObject? = null, val report: JSONObject? = null, val preparation: JSONObject? = null, val installation: JSONObject? = null, val sshPasswordAvailable: Boolean = false
 )
 class InstallationModel(context: Context): ViewModel() {
@@ -50,12 +50,27 @@ class InstallationModel(context: Context): ViewModel() {
         }
     }
     fun trust() {
+        if (state.busy || !state.needsTrust) return
         val key = pendingKey ?: return
         val target = state.target ?: return
-        check(pins.edit().putString(target.identity, Base64.getEncoder().encodeToString(key)).commit())
-        pendingKey = null; state = state.copy(needsTrust = false, trusted = true)
+        if (!pins.edit().putString(target.identity, Base64.getEncoder().encodeToString(key)).commit()) {
+            state = state.copy(message = "Не удалось сохранить ключ сервера. Попробуйте подтвердить ещё раз.")
+            return
+        }
+        pendingKey = null; state = state.copy(needsTrust = false, trusted = true, previousFingerprint = "", message = "")
         val password = pendingPassword; pendingPassword = null
         if (password != null) checkServer(password)
+    }
+    private fun confirmChangedIdentity(identity: SshIdentityChanged, password: String, waitForClose: Boolean = false) {
+        val target = state.target ?: return
+        val saved = pins.getString(target.identity, null)
+        val previous = saved?.let { SshHostIdentity(Base64.getDecoder().decode(it)).fingerprint }.orEmpty()
+        pendingKey = identity.key.copyOf()
+        pendingPassword = password
+        connectionPassword = null
+        // The old host's installation/setup state cannot describe the replacement host.
+        state = InstallationState(target = target, fingerprint = identity.fingerprint,
+            previousFingerprint = previous, needsTrust = true, busy = waitForClose)
     }
     private fun checkServer(password: String) {
         if (state.busy || !state.trusted || password.isBlank()) return
@@ -80,8 +95,8 @@ class InstallationModel(context: Context): ViewModel() {
                 require(report.getInt("protocol") == 1)
                 connectionPassword = password
                 state = state.copy(busy = false, report = report, installation = report.optJSONObject("job_status"), sshPasswordAvailable = true)
-            } catch (_: SshIdentityChanged) {
-                state = state.copy(busy = false, trusted = false, message = "Ключ сервера изменился. Подключение заблокировано; проверьте сервер у провайдера.")
+            } catch (e: SshIdentityChanged) {
+                confirmChangedIdentity(e, password)
             } catch (_: Exception) {
                 state = state.copy(busy = false, message = "SSH-проверка не завершилась. Проверьте пароль root; на сервере нужен Python 3.")
             }
@@ -114,8 +129,8 @@ class InstallationModel(context: Context): ViewModel() {
                 state = state.copy(busy = false)
                 connected(origin, setupToken)
             } catch (e: CancellationException) { throw e
-            } catch (_: SshIdentityChanged) {
-                state = state.copy(busy = false, trusted = false, message = "Ключ сервера изменился. Подключение заблокировано.")
+            } catch (e: SshIdentityChanged) {
+                confirmChangedIdentity(e, credential)
             } catch (_: Exception) {
                 state = state.copy(busy = false, message = "Не удалось открыть установленный кабинет по IP. Проверьте завершение установки и доступность HTTPS.")
             }
@@ -145,8 +160,8 @@ class InstallationModel(context: Context): ViewModel() {
                 require(result.second.getInt("protocol") == 1)
                 state = state.copy(installation = result.first, diagnostics = result.second)
             } catch (e: CancellationException) { throw e
-            } catch (_: SshIdentityChanged) {
-                state = state.copy(trusted = false, message = "Ключ сервера изменился. Подключение заблокировано.")
+            } catch (e: SshIdentityChanged) {
+                confirmChangedIdentity(e, credential, waitForClose = true)
             } catch (_: Exception) {
                 state = state.copy(message = "Не удалось получить диагностику по SSH. Проверьте доступность сервера и пароль root.")
             } finally { state = state.copy(busy = false) }
@@ -210,8 +225,8 @@ class InstallationModel(context: Context): ViewModel() {
                     state = state.copy(message = "Ожидание установки истекло (45 минут). Получите диагностику: состояние задачи сохранено на сервере.")
                 }
             } catch (e: CancellationException) { throw e
-            } catch (_: SshIdentityChanged) {
-                state = state.copy(trusted = false, message = "Ключ сервера изменился. Подключение заблокировано.")
+            } catch (e: SshIdentityChanged) {
+                confirmChangedIdentity(e, credential, waitForClose = true)
             } catch (_: Exception) {
                 state = state.copy(message = "Связь с установкой потеряна или запуск отклонён. Если задача запущена, она продолжится на сервере. Подключитесь снова для просмотра состояния.")
             } finally {
@@ -246,8 +261,8 @@ class InstallationModel(context: Context): ViewModel() {
                     delay(5000)
                 }
             } catch (e: CancellationException) { throw e
-            } catch (_: SshIdentityChanged) {
-                state = state.copy(trusted = false, message = "Ключ сервера изменился. Подключение заблокировано.")
+            } catch (e: SshIdentityChanged) {
+                confirmChangedIdentity(e, credential, waitForClose = true)
             } catch (_: Exception) {
                 state = state.copy(message = "Связь с задачей потеряна или подготовка отклонена. Если задача запущена, она продолжится на сервере. Подключитесь снова для проверки.")
             } finally {

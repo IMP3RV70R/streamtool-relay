@@ -91,7 +91,9 @@ or Ubuntu 24.04. Default builds disable deployment without distribution configur
 The welcome screen has “Подключиться” and “Настроить”. SSH uses one address field
 with default port 22 or an explicit port (`IP:port`, `[IPv6]:port`). No separate
 connection-test step. Confirm first-use host identity before sending credentials;
-pin it to IP/port and reject changed keys. SSH credentials stay on the client in
+pin it to IP/port. A changed key requires explicit confirmation of the old/new
+fingerprints before replacing the pin and sending credentials; it does not permanently
+block installation after a server reinstall. SSH credentials stay on the client in
 memory; the cabinet password is independent. There is no browser SSH relay.
 
 Use a fixed signed distribution path and resumable bounded root host job, not

@@ -29,6 +29,7 @@ services:
     environment:
       DOMAIN: '${DOMAIN:?DOMAIN required}'
       ACME_PROFILE: '${ACME_PROFILE:-tlsserver}'
+      TLS_SERVER_NAME: '${TLS_SERVER_NAME:?TLS_SERVER_NAME required}'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certs/ca.crt:/certs/ca.crt:ro

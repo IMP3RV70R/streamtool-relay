@@ -31,7 +31,7 @@ class PublicAddressTest(unittest.TestCase):
             directory = Path(temporary) / 'install'
             bootstrap.initialize(directory, '2606:4700:4700::1111', *['sha256:' + 'a' * 64] * 4)
             env = (directory / '.env').read_text()
-            self.assertIn('DOMAIN=[2606:4700:4700::1111]\nACME_PROFILE=shortlived\n', env)
+            self.assertIn('DOMAIN=[2606:4700:4700::1111]\nACME_PROFILE=shortlived\nTLS_SERVER_NAME=2606:4700:4700::1111\n', env)
             api = (directory / 'api.env').read_text()
             self.assertIn('PUBLIC_RTMP_URL=rtmp://[2606:4700:4700::1111]:1935\n', api)
             self.assertIn('PUBLIC_SRT_URL=srt://[2606:4700:4700::1111]:8890\n', api)
@@ -43,7 +43,7 @@ class PublicAddressTest(unittest.TestCase):
             with self.subTest(host=host):
                 result = subprocess.check_output([os.environ['CADDY_TEST_BINARY'], 'adapt', '--config',
                     str(ROOT / 'infra/selfhost/Caddyfile'), '--adapter', 'caddyfile'],
-                    env=dict(os.environ, DOMAIN=host, ACME_PROFILE=profile), stderr=subprocess.DEVNULL)
+                    env=dict(os.environ, DOMAIN=host, ACME_PROFILE=profile, TLS_SERVER_NAME=host.strip('[]')), stderr=subprocess.DEVNULL)
                 config = json.loads(result)
                 policies = config['apps']['tls']['automation']['policies']
                 issuer = policies[0]['issuers'][0]
@@ -51,6 +51,8 @@ class PublicAddressTest(unittest.TestCase):
                 self.assertEqual(issuer['ca'], 'https://acme-v02.api.letsencrypt.org/directory')
                 self.assertEqual(issuer['profile'], profile)
                 self.assertNotIn('"internal"', result.decode())
+                server = config['apps']['http']['servers']['srv0']
+                self.assertEqual(server['tls_connection_policies'][0]['default_sni'], host.strip('[]'))
 
 
 if __name__ == '__main__': unittest.main()

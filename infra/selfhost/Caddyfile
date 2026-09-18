@@ -1,3 +1,7 @@
+{
+    default_sni {$TLS_SERVER_NAME}
+}
+
 {$DOMAIN} {
     tls {
         issuer acme {

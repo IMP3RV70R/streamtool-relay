@@ -24,6 +24,18 @@ class SshTargetTest {
     @Test fun hostFingerprintUsesSshSha256Encoding() {
         assertEquals("SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU", SshHostIdentity(byteArrayOf()).fingerprint)
     }
+    @Test fun replacementKeyRequiresConfirmationAndCarriesNewFingerprint() {
+        val saved = byteArrayOf(1, 2, 3)
+        val received = byteArrayOf(1, 2, 4)
+        val change = SshIdentityChanged(received)
+        received[0] = 9
+        assertArrayEquals(byteArrayOf(1, 2, 4), change.key)
+        assertEquals(SshHostIdentity(byteArrayOf(1, 2, 4)).fingerprint, change.fingerprint)
+        assertNotEquals(SshHostIdentity(saved).fingerprint, change.fingerprint)
+        assertEquals(HostKeyRepository.CHANGED, hostKeyDecision(saved, change.key))
+        assertArrayEquals(byteArrayOf(1, 2, 3), saved)
+        assertEquals(HostKeyRepository.OK, hostKeyDecision(change.key.copyOf(), change.key))
+    }
     @Test fun unknownOrChangedHostKeysCannotAuthenticate() {
         val original = byteArrayOf(1, 2, 3)
         assertEquals(HostKeyRepository.NOT_INCLUDED, hostKeyDecision(null, original))

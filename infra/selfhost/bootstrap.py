@@ -48,6 +48,7 @@ def public_address(value):
 
 def initialize(directory, domain, api_image, worker_image, proxy_image, edge_image, *, resume=False, runtime_directory=None):
     domain, profile = public_address(domain)
+    tls_server_name = domain.strip('[]')
     for image in (api_image, worker_image, proxy_image, edge_image):
         if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_./:@-]{0,255}', image):
             raise ValueError('invalid image reference')
@@ -128,7 +129,7 @@ def initialize(directory, domain, api_image, worker_image, proxy_image, edge_ima
         'EDGE_API_URL':'https://edge:9997','EDGE_API_CA_FILE':'/certs/ca.crt','EDGE_SRT_URL':'srt://172.30.81.2:8890',
     }
     (directory/'api.env').write_text(''.join(f'{k}={v}\n' for k,v in settings.items()))
-    (directory/'.env').write_text(f'DOMAIN={domain}\nACME_PROFILE={profile}\nAPI_IMAGE={api_image}\nWORKER_IMAGE={worker_image}\nPROXY_IMAGE={proxy_image}\nEDGE_IMAGE={edge_image}\n')
+    (directory/'.env').write_text(f'DOMAIN={domain}\nACME_PROFILE={profile}\nTLS_SERVER_NAME={tls_server_name}\nAPI_IMAGE={api_image}\nWORKER_IMAGE={worker_image}\nPROXY_IMAGE={proxy_image}\nEDGE_IMAGE={edge_image}\n')
     agent={
         'MAINTENANCE_DIRECTORY':'/var/lib/streamtool-updater/admission',
         'STREAMTOOL_ENV':'production','NODE_ID':node,'NODE_SLOTS':'1','NODE_CPU_MILLIS':'2000','NODE_MEMORY_BYTES':str(1<<30),

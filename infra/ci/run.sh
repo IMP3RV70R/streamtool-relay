@@ -67,6 +67,8 @@ case "$suite" in
     timeout --signal=TERM --kill-after=60s 45m bash infra/selfhost/package.sh "$STREAMTOOL_RELEASE_VERSION"
     case "$(uname -m)" in x86_64) release_arch=amd64 ;; aarch64|arm64) release_arch=arm64 ;; *) exit 1 ;; esac
     timeout --signal=TERM --kill-after=60s 30m bash infra/release/scan.sh ".artifacts/streamtool-relay-$STREAMTOOL_RELEASE_VERSION-$release_arch"
+    CADDY_TEST_IMAGE="$(cat ".artifacts/streamtool-relay-$STREAMTOOL_RELEASE_VERSION-$release_arch/proxy-image")" \
+      timeout --signal=TERM --kill-after=10s 2m python3 tests/selfhost/public_ip_tls_test.py
     ;;
   checks)
     GOBIN="$tools_dir" go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7

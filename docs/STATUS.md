@@ -45,3 +45,9 @@ Local checks do not establish production readiness.
 - [Local Linux recovery checks](LINUX_UPDATE_ACCEPTANCE.md)
 - [Media dependency security](MEDIA_SECURITY.md)
 - [Native packaging and offline signing](RELEASE_BUILD.md)
+
+The current source fixes TLS certificate selection for IP clients without SNI via
+Caddy `default_sni`. Real proxy tests reproduce the previous handshake failure and
+verify IPv4/IPv6/DNS with normal certificate validation. The published preview bundle
+does not include this fix. Target-host logs show successful IP certificate issuance;
+complete READY/owner/stream acceptance and public renewal remain unaccepted.
