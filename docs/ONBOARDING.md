@@ -30,7 +30,7 @@ The steps describe the configured implementation. An unconfigured debug APK cann
 deploy the application. Distribution build configuration is in the
 [Android README](../apps/android/README.md).
 
-The changed-key confirmation flow is included in the signed 0.3.2 preview APK.
+The changed-key confirmation flow is included in the signed 0.3.3 preview APK.
 
 ## Trust and credentials
 

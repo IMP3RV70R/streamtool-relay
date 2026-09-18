@@ -128,8 +128,9 @@ from the root MIT license; protected production signing is not configured.
 The reviewed public preview trust and fixed metadata addresses are in
 [`preview-distribution.json`](../infra/release/preview-distribution.json). The
 preview uses native server candidate `0.1.0-candidate.20260918.3` from source
-revision `6e3b888`; the signed Android 0.3.2 APK was built from `5460db8`.
-The only difference between those revisions is CI TLS fixture permissions.
+revision `6e3b888`; the signed Android 0.3.3 APK was built from `c5245bd`.
+It uses the same server distribution. Current-source web/backend changes and
+SQLite migration 000008 are not included in the existing server bundles.
 Ordinary Android builds still disable deployment.
 
 `make android-preview` builds/lints a release APK with this pinned trust. Its

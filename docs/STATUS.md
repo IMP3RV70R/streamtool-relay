@@ -59,6 +59,7 @@ source key is no longer in client memory. Browser clipboard values and Android
 build/lint passed locally. Clients
 automatically provision an always-available source; the global routing switch
 and source disable endpoint are removed. SQLite migration 000008 restores
-previously disabled owner sources without rotating keys. These changes are not
-in the published Android 0.3.2/server .3 preview. Android build/lint/unit tests,
+previously disabled owner sources without rotating keys. The Android changes are included in the signed 0.3.3 APK; anonymous APK
+download/hash and the unchanged signing identity passed verification. Current-source
+web/backend changes and migration 000008 are not in the server .3 preview. Android build/lint/unit tests,
 API/storage tests and five browser checks passed locally.
