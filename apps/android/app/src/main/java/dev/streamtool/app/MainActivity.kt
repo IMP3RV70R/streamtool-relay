@@ -142,6 +142,7 @@ private fun Cabinet(model: CabinetModel, installation: InstallationModel) {
 @Composable
 private fun SshPreparation(model: InstallationModel, connected: (String, String) -> Unit) {
     val state = model.state
+    val context = LocalContext.current
     var ip by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     Text("Укажите данные VDS. Параметры сервера проверим во время настройки.")
@@ -203,6 +204,22 @@ private fun SshPreparation(model: InstallationModel, connected: (String, String)
                 "FAILED" -> "Установка остановлена. Сохранённый этап можно повторить."
                 else -> "Установка не запускалась"
             })
+        }
+        state.installation?.let { job ->
+            Text("Попытка ${job.optInt("attempts", 0)} из 3 · этап ${job.optString("resume_phase", job.optString("phase"))}")
+            if (!job.isNull("error") && job.optString("error").isNotBlank()) {
+                Text(installationFailureMessage(job.optString("error")), color = MaterialTheme.colorScheme.error)
+                Text("Код: ${job.optString("error")}")
+                if (job.optString("phase") != "FAILED") Text("Сервер автоматически повторит этап в пределах лимита попыток.")
+            }
+            if (state.trusted) {
+                TextButton(onClick = { model.diagnose(password); password = "" }, enabled = !state.busy && (password.isNotBlank() || state.sshPasswordAvailable)) { Text("Получить диагностику") }
+            }
+            val report = installationDiagnosticReport(job, state.diagnostics)
+            Text(report, style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = {
+                context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Диагностика установки", report))
+            }) { Text("Скопировать диагностику") }
         }
         if (state.trusted && !model.distributionConfigured) {
             TextButton(onClick = { model.prepareServer(password, false); password = "" }, enabled = !state.busy && (password.isNotBlank() || state.sshPasswordAvailable)) { Text("Проверить подготовку после переподключения") }

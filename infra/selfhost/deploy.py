@@ -5,6 +5,8 @@ The autonomous installer owns admission/journaling. This is never an updater and
 never removes another installation, workload, configuration or owner database.
 """
 import ctypes
+import hashlib
+import tarfile
 import importlib.util
 import json
 import os
@@ -19,7 +21,9 @@ import tempfile
 
 def module(stage, name):
     spec = importlib.util.spec_from_file_location(name, stage / (name + '.py'))
-    result = importlib.util.module_from_spec(spec); spec.loader.exec_module(result)
+    result = importlib.util.module_from_spec(spec)
+    # Executing reviewed source must not add __pycache__ to signed staging.
+    exec(compile((stage / (name + '.py')).read_bytes(), str(stage / (name + '.py')), 'exec'), result.__dict__)
     return result
 
 
@@ -57,6 +61,32 @@ def run(*args, timeout=180):
     subprocess.run(args, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
 
 
+def manifest_ids(archive, expected):
+    """Resolve only content-addressed OCI manifests present in signed image bytes."""
+    result = {}
+    with tarfile.open(archive, 'r') as saved:
+        def read(name):
+            member = saved.getmember(name)
+            if not member.isfile() or member.size > 65536: raise ValueError('invalid image metadata')
+            return saved.extractfile(member).read()
+        try: index = json.loads(read('index.json'))
+        except KeyError: return result  # Classic Docker archives expose config IDs.
+        descriptors = index.get('manifests', [])
+        if not isinstance(descriptors, list) or len(descriptors) > 16: raise ValueError('invalid image index')
+        for descriptor in descriptors:
+            stamp = descriptor.get('digest', '')
+            if not re.fullmatch(r'sha256:[0-9a-f]{64}', stamp): raise ValueError('invalid image digest')
+            data = read('blobs/sha256/' + stamp[7:])
+            if hashlib.sha256(data).hexdigest() != stamp[7:]: raise ValueError('invalid image digest')
+            manifest = json.loads(data)
+            config = manifest.get('config', {}).get('digest')
+            for name, wanted in expected.items():
+                if config == wanted:
+                    if name in result: raise ValueError('ambiguous image manifest')
+                    result[name] = stamp
+    return result
+
+
 class InitialDeployment:
     def __init__(self, root, stage, job, execute=run):
         self.root, self.stage, self.job, self.execute = root, stage, job, execute
@@ -64,6 +94,13 @@ class InitialDeployment:
         self.address, _ = self.bootstrap.public_address(job['address'])
         self.images = {name: (stage / (name + '-image')).read_text().strip() for name in ('api','worker','proxy','edge')}
         if any(not re.fullmatch(r'sha256:[0-9a-f]{64}', image) for image in self.images.values()): raise ValueError('invalid image')
+        self.declared_images = dict(self.images)
+        resolved = job.get('runtime_images')
+        if resolved is not None:
+            candidates = manifest_ids(stage / 'images.tar', self.declared_images)
+            if not isinstance(resolved, dict) or set(resolved) != set(self.images) or any(not isinstance(resolved[name], str) or resolved[name] not in (self.images[name], candidates.get(name)) for name in self.images):
+                raise ValueError('invalid runtime image identity')
+            self.images = dict(resolved)
 
     def owned(self):
         marker = self.root / 'INSTALLATION_JOB'
@@ -73,10 +110,22 @@ class InitialDeployment:
     def image_load(self):
         self.execute('docker', 'load', '-i', str(self.stage / 'images.tar'), timeout=900)
         architecture = {'x86_64':'amd64','aarch64':'arm64'}[platform.machine()]
-        for image in self.images.values():
-            actual = subprocess.check_output(['docker','image','inspect','--format','{{.Os}}/{{.Architecture}}',image],
-                                             text=True,stderr=subprocess.DEVNULL,timeout=30).strip()
-            if actual != 'linux/' + architecture: raise ValueError('image platform mismatch')
+        candidates = manifest_ids(self.stage / 'images.tar', self.declared_images)
+        resolved = {}
+        for name, declared in self.declared_images.items():
+            references = list(dict.fromkeys([declared] + ([candidates[name]] if name in candidates else [])))
+            for image in references:
+                try:
+                    actual = subprocess.check_output(['docker','image','inspect','--format','{{.Os}}/{{.Architecture}}',image],
+                                                     text=True,stderr=subprocess.DEVNULL,timeout=30).strip()
+                except subprocess.CalledProcessError:
+                    if image == references[-1]: raise
+                    continue
+                if actual != 'linux/' + architecture: raise ValueError('image platform mismatch')
+                resolved[name] = image
+                break
+        self.images = resolved
+        self.job['runtime_images'] = dict(resolved)
 
     def configure(self):
         if self.root.exists() or self.root.is_symlink():

@@ -4,7 +4,7 @@ android {
  compileSdk 36
  defaultConfig {
   applicationId 'dev.streamtool.app'; minSdk 26; targetSdk 36
-  versionCode 3; versionName '0.3.0'
+  versionCode 4; versionName '0.3.1'
   testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
  }
  buildFeatures { buildConfig true; compose true }
@@ -64,6 +64,7 @@ tasks.register('installerPayload', Zip) {
 tasks.register('installerApkAssets', Sync) {
  dependsOn 'installerPayload'
  from(layout.buildDirectory.dir('installerAssets')) { include 'installer.py', 'distribution.json' }
+ from('../../../infra/selfhost') { include 'installer_diagnostics.py' }
  from(layout.buildDirectory.dir('installerPayload'))
  into(layout.buildDirectory.dir('installerApkAssets'))
 }

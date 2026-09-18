@@ -1,5 +1,7 @@
 """Durable initial-install faults with real bootstrap files, fake host operations."""
 import base64
+import hashlib
+import tarfile
 import json
 import os
 from pathlib import Path
@@ -63,6 +65,19 @@ class InstallationTest(unittest.TestCase):
         self.assertNotIn('PASSWORD',json.dumps(state))
         retry=self.installation.begin('8.8.8.8');self.assertEqual(retry['job_id'],first['job_id']);self.assertEqual(retry['phase'],'CONFIGURE')
         calls=[];self.installation.run(self.operations(calls));self.assertEqual(calls,app.PHASES[app.PHASES.index('CONFIGURE'):])
+    def test_command_failures_expose_only_safe_code_not_argv_or_provider_output(self):
+        operations = self.operations([])
+        error = subprocess.CalledProcessError(17, ['docker', 'load', 'PASSWORD'], stderr=b'SECRET')
+        def fail(state): raise error
+        operations['IMAGES'] = fail
+        with self.assertRaises(subprocess.CalledProcessError): self.installation.begin('8.8.8.8'); self.installation.run(operations)
+        state = self.journal.read()
+        self.assertEqual(state['error'], 'command_failed')
+        self.assertEqual(state['failure'], {'command': 'docker', 'exit_code': 17})
+        self.assertNotIn('PASSWORD', json.dumps(state)); self.assertNotIn('SECRET', json.dumps(state))
+        code, details = app.failure_details(subprocess.TimeoutExpired(['docker', 'SECRET'], 900))
+        self.assertEqual(code, 'command_timeout'); self.assertEqual(details, {'command': 'docker'})
+
     def test_expiry_and_changed_distribution_never_mutate(self):
         state=self.installation.begin('8.8.8.8');state['deadline']=1;self.journal.write(state)
         self.installation.run(self.operations([]));self.assertEqual(self.journal.read()['phase'],'FAILED')
@@ -92,9 +107,45 @@ class ConfigurationTest(unittest.TestCase):
         for name in ['bootstrap.py','compose.yml','Caddyfile','mediamtx.yml']:shutil.copyfile(REPO/'infra/selfhost'/name,self.stage/name)
         shutil.copytree(REPO/'apps/web',self.stage/'web')
         for name in ['api','worker','proxy','edge']:(self.stage/(name+'-image')).write_text('sha256:'+'a'*64)
+        with tarfile.open(self.stage / 'images.tar', 'w'): pass
         self.root=self.directory/'streamtool'
         self.job={'job_id':str(uuid.uuid4()),'address':'8.8.8.8','version':'test-release','sequence':2,'schema':7}
         self.deployment=deploy.InitialDeployment(self.root,self.stage,self.job,execute=lambda *a,**k:None)
+    def test_loading_bootstrap_does_not_mutate_verified_stage(self):
+        before = {p.relative_to(self.stage).as_posix(): p.read_bytes() for p in self.stage.rglob('*') if p.is_file()}
+        deploy.InitialDeployment(self.root, self.stage, self.job, execute=lambda *a, **k: None)
+        after = {p.relative_to(self.stage).as_posix(): p.read_bytes() for p in self.stage.rglob('*') if p.is_file()}
+        self.assertEqual(after, before)
+        self.assertFalse((self.stage / '__pycache__').exists())
+
+    def oci_archive(self):
+        data = json.dumps({'schemaVersion': 2, 'config': {'digest': 'sha256:' + 'a' * 64}, 'layers': []}).encode()
+        stamp = 'sha256:' + hashlib.sha256(data).hexdigest()
+        index = json.dumps({'manifests': [{'digest': stamp}]}).encode()
+        with tarfile.open(self.stage / 'images.tar', 'w') as archive:
+            for name, content in [('index.json', index), ('blobs/sha256/' + stamp[7:], data)]:
+                entry = tarfile.TarInfo(name); entry.size = len(content); archive.addfile(entry, io.BytesIO(content))
+        return stamp
+    def test_containerd_resolves_only_signed_manifest_and_persists_for_resume(self):
+        stamp = self.oci_archive()
+        def inspect(args, **kwargs):
+            if args[-1] == 'sha256:' + 'a' * 64: raise subprocess.CalledProcessError(1, args)
+            self.assertEqual(args[-1], stamp)
+            return 'linux/amd64'
+        with patch.object(deploy.platform, 'machine', return_value='x86_64'), patch.object(deploy.subprocess, 'check_output', side_effect=inspect):
+            self.deployment.image_load()
+        self.assertEqual(self.job['runtime_images'], {name: stamp for name in ('api','worker','proxy','edge')})
+        resumed = deploy.InitialDeployment(self.root, self.stage, self.job, execute=lambda *a, **k: None)
+        self.assertEqual(resumed.images, self.job['runtime_images'])
+        self.job['runtime_images']['worker'] = 'sha256:' + 'b' * 64
+        with self.assertRaises(ValueError): deploy.InitialDeployment(self.root, self.stage, self.job)
+    def test_bad_oci_digest_is_never_used(self):
+        self.oci_archive()
+        archive = self.stage / 'images.tar'
+        data = archive.read_bytes().replace(b'"schemaVersion": 2', b'"schemaVersion": 3')
+        archive.write_bytes(data)
+        with self.assertRaises(ValueError): deploy.manifest_ids(archive, self.deployment.declared_images)
+
     def secrets(self,root):
         return {p.relative_to(root).as_posix():p.read_bytes() for p in root.rglob('*') if p.is_file() and (p.suffix=='.key' or p.parent.name=='secrets')}
     def test_partial_bootstrap_resumes_same_keys_and_publishes_correct_paths(self):
@@ -257,6 +308,22 @@ class ActualStagingTest(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):self.operations['METADATA'](self.state)
         self.assertFalse((self.journal.root/'metadata-accepted.json').exists())
         self.assertFalse((self.directory/'installed').exists())
+    def test_old_python_cache_is_restaged_by_actual_independent_verifier(self):
+        for phase in ['METADATA','DOWNLOAD','STAGE']: self.operations[phase](self.state)
+        stage = self.journal.root / 'stage'
+        cache = stage / '__pycache__'; cache.mkdir()
+        (cache / 'bootstrap.cpython-313.pyc').write_bytes(b'UNTRUSTED CACHE')
+        self.operations['CONFIGURE'](self.state)
+        self.assertFalse(cache.exists())
+        self.assertTrue((self.directory/'installed/secrets/envelope_key').is_file())
+    def test_cache_recovery_never_accepts_a_changed_signed_bundle(self):
+        for phase in ['METADATA','DOWNLOAD','STAGE']: self.operations[phase](self.state)
+        cache = self.journal.root / 'stage/__pycache__'; cache.mkdir()
+        (cache / 'bootstrap.cpython-313.pyc').write_bytes(b'UNTRUSTED CACHE')
+        bundle = self.journal.root / 'bundle.tar.gz'; bundle.write_bytes(bundle.read_bytes() + b'changed')
+        with self.assertRaises(subprocess.CalledProcessError): self.operations['CONFIGURE'](self.state)
+        self.assertFalse((self.directory/'installed').exists())
+
     def test_changed_bundle_and_changed_accepted_stage_are_refused(self):
         self.operations['METADATA'](self.state);self.operations['DOWNLOAD'](self.state)
         bundle=self.journal.root/'bundle.tar.gz';bundle.write_bytes(bundle.read_bytes()+b'changed')

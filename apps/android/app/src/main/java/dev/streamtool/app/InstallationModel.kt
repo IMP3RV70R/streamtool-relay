@@ -17,7 +17,7 @@ import java.util.Base64
 data class InstallationState(
     val target: SshTarget? = null, val fingerprint: String = "", val needsTrust: Boolean = false,
     val trusted: Boolean = false, val busy: Boolean = false, val message: String = "",
-    val report: JSONObject? = null, val preparation: JSONObject? = null, val installation: JSONObject? = null, val sshPasswordAvailable: Boolean = false
+    val diagnostics: JSONObject? = null, val report: JSONObject? = null, val preparation: JSONObject? = null, val installation: JSONObject? = null, val sshPasswordAvailable: Boolean = false
 )
 class InstallationModel(context: Context): ViewModel() {
     private val app = context.applicationContext
@@ -125,6 +125,33 @@ class InstallationModel(context: Context): ViewModel() {
         val data = app.assets.open("distribution.json").use { it.readBytes().toString(Charsets.UTF_8) }
         JSONObject(data).has("public_key")
     }.getOrDefault(false)
+    fun diagnose(password: String) {
+        if (state.busy || !state.trusted) return
+        val credential = takeCredential(password) ?: return
+        val target = state.target ?: return
+        val key = Base64.getDecoder().decode(requireNotNull(pins.getString(target.identity, null)))
+        state = state.copy(busy = true, message = "")
+        viewModelScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    SshConnection(target, key).use {
+                        it.connect(credential)
+                        val job = JSONObject(it.installationStatus())
+                        require(job.getInt("protocol") == 1 && SshTarget.parse(job.getString("address")).host == target.host)
+                        val helper = app.assets.open("installer_diagnostics.py").use { file -> file.readBytes() }
+                        job to JSONObject(it.installationDiagnostics(helper))
+                    }
+                }
+                require(result.second.getInt("protocol") == 1)
+                state = state.copy(installation = result.first, diagnostics = result.second)
+            } catch (e: CancellationException) { throw e
+            } catch (_: SshIdentityChanged) {
+                state = state.copy(trusted = false, message = "Ключ сервера изменился. Подключение заблокировано.")
+            } catch (_: Exception) {
+                state = state.copy(message = "Не удалось получить диагностику по SSH. Проверьте доступность сервера и пароль root.")
+            } finally { state = state.copy(busy = false) }
+        }
+    }
     fun installServer(password: String, start: Boolean, connected: (String, String) -> Unit) {
         if (state.busy || !state.trusted || start && !distributionConfigured) return
         val credential = takeCredential(password) ?: return
@@ -148,11 +175,23 @@ class InstallationModel(context: Context): ViewModel() {
                     }
                 }
                 val deadline = System.nanoTime() + 2_700_000_000_000L
+                var observedFailure = ""
                 while (System.nanoTime() < deadline) {
                     val job = JSONObject(withContext(Dispatchers.IO) { connection.installationStatus() })
                     require(job.getInt("protocol") == 1)
                     if (job.getString("phase") != "NOT_STARTED") require(SshTarget.parse(job.getString("address")).host == target.host)
                     state = state.copy(installation = job)
+                    val failure = "${job.optString("resume_phase")}:${job.optInt("attempts")}:${job.optString("error")}"
+                    if ((job.optString("phase") == "IMAGES" || !job.isNull("error") && job.optString("error").isNotBlank()) && failure != observedFailure) {
+                        observedFailure = failure
+                        val diagnostics = withContext(Dispatchers.IO) {
+                            runCatching {
+                                val helper = app.assets.open("installer_diagnostics.py").use { it.readBytes() }
+                                JSONObject(connection.installationDiagnostics(helper))
+                            }.getOrNull()
+                        }
+                        state = state.copy(diagnostics = diagnostics)
+                    }
                     if (job.getString("phase") == "SUCCEEDED") {
                         val reply = JSONObject(withContext(Dispatchers.IO) { connection.cabinetHandoff() })
                         require(reply.getInt("protocol") == 1)
@@ -166,6 +205,9 @@ class InstallationModel(context: Context): ViewModel() {
                     }
                     if (job.getString("phase") in listOf("FAILED", "NOT_STARTED")) break
                     delay(5000)
+                }
+                if (state.installation?.optString("phase") !in listOf("FAILED", "NOT_STARTED", "SUCCEEDED")) {
+                    state = state.copy(message = "Ожидание установки истекло (45 минут). Получите диагностику: состояние задачи сохранено на сервере.")
                 }
             } catch (e: CancellationException) { throw e
             } catch (_: SshIdentityChanged) {

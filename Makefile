@@ -15,6 +15,7 @@ check: test vet
 	python3 tests/selfhost/installer_preflight_test.py
 	python3 tests/selfhost/installer_job_test.py
 	$(GO_ENV) python3 tests/selfhost/application_install_test.py
+	python3 tests/selfhost/installer_diagnostics_test.py
 	python3 tests/selfhost/host_idle_test.py
 	python3 tests/selfhost/web_replace_test.py
 	python3 tests/selfhost/disk_reserve_test.py

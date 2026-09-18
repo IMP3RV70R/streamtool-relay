@@ -27,7 +27,7 @@ Enhanced Broadcasting, HEVC, multiple video tracks and 1440p are outside current
 
 **Pre-launch.** A signed [installation preview](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.2) is available
 for clean Debian 13 / Ubuntu 24.04 servers with public IP and root SSH. Download
-`streamtool-relay-0.3.0-preview.apk`, choose “Настроить” and enter the SSH address
+`streamtool-relay-0.3.1-preview.apk`, choose “Настроить” and enter the SSH address
 and credentials. Its signed installation metadata expires on 19 October 2026.
 Default development APKs still disable deployment. Public update controls are unfinished.
 Local media and recovery checks have passed; real VDS, public certificate issuance

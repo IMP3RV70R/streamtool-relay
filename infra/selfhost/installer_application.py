@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Autonomous first installation from APK-pinned trust and verifier binaries."""
 import base64
+import errno
 import hashlib
 import ipaddress
 import json
@@ -15,6 +16,9 @@ import time
 import urllib.request
 from urllib.parse import urlsplit
 import uuid
+
+# The signed staged inventory must stay immutable across retries.
+sys.dont_write_bytecode = True
 
 import installer
 from deploy import InitialDeployment, durable_tree
@@ -177,6 +181,27 @@ def network_check(owned=False):
             if subnet and any(ipaddress.ip_network(subnet).overlaps(wanted) for wanted in desired): raise ValueError('subnet conflict')
 
 
+def failure_details(error):
+    # Exception text, argv, paths and provider output may contain credentials.
+    details = {}
+    code = 'installation_failed'
+    if isinstance(error, ValueError):
+        code = {'changed accepted stage': 'stage_inventory_changed', 'image platform mismatch': 'image_platform_mismatch',
+                'insufficient staging space': 'staging_space_insufficient'}.get(str(error), code)
+    if isinstance(error, subprocess.TimeoutExpired): code = 'command_timeout'
+    elif isinstance(error, TimeoutError): code = 'installation_timeout'
+    elif isinstance(error, OSError) and error.errno == errno.ENOSPC: code = 'disk_full'
+    elif isinstance(error, subprocess.CalledProcessError): code = 'command_failed'
+    if isinstance(error, (subprocess.CalledProcessError, subprocess.TimeoutExpired)):
+        args = error.cmd
+        name = Path(args[0]).name if isinstance(args, (list, tuple)) and args and isinstance(args[0], str) else ''
+        if name in ('docker', 'systemctl', 'apt-get', 'release-tool-amd64', 'release-tool-arm64'):
+            details['command'] = name
+        if isinstance(error, subprocess.CalledProcessError): details['exit_code'] = error.returncode
+    if isinstance(error, OSError) and error.errno is not None: details['errno'] = error.errno
+    return code, details
+
+
 class Installation:
     def __init__(self, journal, assets=ASSETS, check=conflicts):
         self.journal,self.assets,self.check = journal,assets,check
@@ -190,7 +215,7 @@ class Installation:
                 if state['address'] != address or state['distribution_digest'] != pin: raise ValueError('different installation request')
                 if state['phase'] != 'FAILED': return state
                 # Retry only the durable failed phase, never initialize a second owner.
-                state.update(phase=state['resume_phase'], attempts=0,deadline=int(time.time())+2700,error=None)
+                state.update(phase=state['resume_phase'], attempts=0,deadline=int(time.time())+2700,error=None,failure=None)
             else:
                 self.check()
                 state = {'protocol':1,'job_id':str(uuid.uuid4()),'phase':'PENDING','resume_phase':'PENDING',
@@ -213,15 +238,21 @@ class Installation:
                 start = 0 if state['phase']=='PENDING' else PHASES.index(state['phase'])
                 for phase in PHASES[start:]:
                     if time.time() >= state['deadline']: raise TimeoutError()
-                    state.update(phase=phase,resume_phase=phase,error=None); self.journal.write(state)
+                    state.update(phase=phase,resume_phase=phase,error=None,failure=None); self.journal.write(state)
                     operations[phase](state)
                     self.journal.write(state)
                 state.update(phase='SUCCEEDED',error=None); self.journal.write(state)
-            except Exception:
-                state['error']='installation_failed'
+            except Exception as error:
+                state['error'], state['failure'] = failure_details(error)
                 if state['attempts'] >= 3: state['phase']='FAILED'
                 self.journal.write(state); raise
             return state
+
+
+def cache_only_change(expected, actual):
+    extra = set(actual) - set(expected)
+    return (bool(extra) and all(actual.get(name) == stamp for name, stamp in expected.items())
+            and all(re.fullmatch(r'(?:[A-Za-z0-9_-]+/)*__pycache__/[A-Za-z_][A-Za-z0-9_]*\.cpython-[0-9]{2,3}(?:\.opt-[12])?\.pyc', name) for name in extra))
 
 
 def operations(journal,assets=ASSETS):
@@ -256,7 +287,15 @@ def operations(journal,assets=ASSETS):
         ready = root/'stage-accepted.json'
         if ready.exists():
             if json.loads(ready.read_text())['digest'] != digest(root/'manifest.json'): raise ValueError('changed stage identity')
-            return
+            path = root/'stage'
+            if path.is_symlink() or any(p.is_symlink() for p in path.rglob('*')): raise ValueError('unsafe accepted stage')
+            actual = {p.relative_to(path).as_posix():digest(p) for p in path.rglob('*') if p.is_file()}
+            expected = json.loads(ready.read_text())['inventory']
+            if actual == expected: return
+            if not cache_only_change(expected, actual): raise ValueError('changed accepted stage')
+            # Restore only the private job's staging from the independently verified
+            # signed bundle. Never accept altered files by changing their hashes.
+            ready.unlink(); durable_tree(root)
         path = root/'stage'
         if path.is_symlink(): raise ValueError('unsafe stage')
         if path.exists(): shutil.rmtree(path)  # Only this private job's incomplete stage.
@@ -281,7 +320,11 @@ def operations(journal,assets=ASSETS):
             raise ValueError('superseded installation release')
         if checked_stage: return
         actual = {p.relative_to(path).as_posix():digest(p) for p in path.rglob('*') if p.is_file()}
-        if actual != accepted['inventory']: raise ValueError('changed accepted stage')
+        if actual != accepted['inventory']:
+            stage({})
+            restored = json.loads((root/'stage-accepted.json').read_text())
+            actual = {p.relative_to(path).as_posix():digest(p) for p in path.rglob('*') if p.is_file()}
+            if actual != restored['inventory']: raise ValueError('changed accepted stage')
         checked_stage = True
     def deployment(method):
         def action(state):
@@ -326,7 +369,7 @@ def main():
         state = installation.run(lambda: operations(journal))
         if state and state['phase'] in ['SUCCEEDED','FAILED']:
             installer.command('systemctl','disable','--now','streamtool-installation.timer',timeout=30)
-    print(json.dumps({key:state[key] for key in ['protocol','job_id','phase','resume_phase','attempts','address','version','error'] if key in state} if state else {'protocol':1,'phase':'NOT_STARTED'}))
+    print(json.dumps({key:state[key] for key in ['protocol','job_id','phase','resume_phase','attempts','address','version','error','failure'] if key in state} if state else {'protocol':1,'phase':'NOT_STARTED'}))
 
 
 if __name__=='__main__':

@@ -133,6 +133,10 @@ class SshConnection(private val target: SshTarget, private val pinnedKey: ByteAr
         require(!bootstrap.contains('\''))
         return execute("python3 -c '$bootstrap'", helper)
     }
+    fun installationDiagnostics(helper: ByteArray): String {
+        require(helper.size in 1..16384)
+        return execute("python3 -", helper)
+    }
     fun installationStatus(): String = execute("python3 /usr/local/libexec/streamtool-installer/installer_application.py status")
     fun install(payload: ByteArray): String {
         require(payload.size in 1..33554432)

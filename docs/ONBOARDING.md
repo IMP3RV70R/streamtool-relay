@@ -50,6 +50,28 @@ Temporary CDN queries are not persisted/logged. Independent Go verification stag
 without executing package code; accepted inventory is checked before execution.
 See [release trust](RELEASE_CHANNEL.md).
 
+## Installation diagnostics
+
+The Android wizard displays the current/resume stage, attempt count and a safe
+failure code. “Получить диагностику” reads job/Docker service state, exit status,
+Docker availability, disk/inode capacity and available RAM/swap through pinned SSH.
+It also works with an existing failed preview job without replacing its helper.
+“Скопировать диагностику” copies only allowlisted observations and identifiers;
+no passwords, setup tokens, output keys, command arguments or raw provider logs.
+A snapshot is collected automatically at image import and after an observed error.
+Snapshots describe the time of collection, not proof of the original cause.
+
+New installer helpers persist safe timeout/command/exit/errno details. Python
+imports do not create bytecode caches inside accepted staging. A retry can repair
+legacy added Python-cache files only by independently verifying/restaging the
+original signed bundle. Changed/missing signed files, symlinks or arbitrary added
+files remain refused. Committed configuration, owner and keys are preserved.
+
+Classic Docker and containerd image stores may expose different immutable IDs for
+the same archive. Image import resolves either the signed config ID or the matching
+OCI manifest digest derived from the signed archive; it never falls back to mutable
+tags. The selected identities are persisted for configuration and readiness checks.
+
 ## Host job and recovery
 
 The application job has a private atomic journal, exclusive lock, stable UUID and
@@ -104,7 +126,7 @@ retryable. A separate browser visit uses ordinary owner login, never a URL-carri
 
 ## Verification limits
 
-Local evidence: 21 installer tests, independent Go signature/staging refusal checks,
+Local evidence: 27 application-installer tests and two diagnostics tests, independent Go signature/staging refusal checks,
 Android build/lint/unit and five emulator cabinet/navigation/handoff tests. Fixture
 host/network operations do not verify real SSH/Linux deployment, public ACME,
 provider reachability, storage faults or actual Twitch delivery. No real VDS

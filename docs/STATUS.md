@@ -11,7 +11,7 @@ The [product contract](PRODUCT_ALIGNMENT.md) defines the current scope.
 | Cabinet/API | Password + TOTP setup/login, recovery codes, factor replay protection, encrypted/hash-only secrets, CSRF and persistent attempt limits |
 | Media | Continuous encoder, image/looped-MP4 fallback/return, eight outputs, isolated destination failure and explicit stop |
 | Android | Native cabinet, two-action welcome screen, app-bar navigation, encrypted origin-bound session, SSH pins and setup handoff; build/lint, nine unit tests, five emulator tests and actual local API contract test passed |
-| Initial installation | Signed download/staging, immutable images, bounded resumable systemd job and preserved configuration; 21 local installer tests passed |
+| Initial installation | Signed download/staging, immutable images, bounded resumable systemd job and preserved configuration; 27 local application-installer tests and two diagnostics tests passed; image import verified against Docker 29/containerd locally |
 | Software updates | Independent coordinator, restricted Unix bridge, owner TOTP API/outbox, matching-version/database rollback and emergency-space recovery |
 | Distribution/security | MIT, GitHub checks/native candidate workflows, offline signing/verifier; current-format native GitHub amd64/arm64 packages and exact-image scans passed |
 
