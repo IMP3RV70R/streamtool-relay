@@ -1,0 +1,68 @@
+name: streamtool-selfhost
+services:
+  api:
+    image: ${API_IMAGE:?API_IMAGE required}
+    env_file: ./api.env
+    volumes:
+      - /var/lib/streamtool-updater/admission:/maintenance:ro
+      - /var/lib/streamtool-updater/socket:/updater:ro
+      - ./state:/data
+      - ./secrets:/run/secrets:ro
+      - ./certs/ca.crt:/certs/ca.crt:ro
+      - ./certs/api.crt:/certs/api.crt:ro
+      - ./certs/api.key:/certs/api.key:ro
+      - ./certs/controller.crt:/certs/controller.crt:ro
+      - ./certs/controller.key:/certs/controller.key:ro
+      - ./web:/web:ro
+      - ./keyring.json:/deployment/keyring.json:ro
+      - ./media-node.json:/deployment/media-node.json:ro
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    networks:
+      control: {ipv4_address: 172.30.80.2}
+      authorization: {ipv4_address: 172.30.82.2}
+  proxy:
+    image: ${PROXY_IMAGE:?PROXY_IMAGE required}
+    environment:
+      DOMAIN: '${DOMAIN:?DOMAIN required}'
+      ACME_PROFILE: '${ACME_PROFILE:-tlsserver}'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs/ca.crt:/certs/ca.crt:ro
+      - ./caddy-data:/data
+      - ./caddy-config:/config
+    ports: ['80:80', '443:443', '443:443/udp']
+    restart: unless-stopped
+    networks:
+      control: {ipv4_address: 172.30.80.3}
+  edge:
+    image: ${EDGE_IMAGE:?EDGE_IMAGE required}
+    environment: {SSL_CERT_FILE: /certs/ca.crt}
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+      - ./certs/ca.crt:/certs/ca.crt:ro
+      - ./certs/edge.crt:/certs/edge.crt:ro
+      - ./certs/edge.key:/certs/edge.key:ro
+    ports: ['1935:1935', '8890:8890/udp']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    networks:
+      control: {ipv4_address: 172.30.80.4}
+      media: {ipv4_address: 172.30.81.2}
+      authorization: {ipv4_address: 172.30.82.3}
+networks:
+  control:
+    name: streamtool-control
+    ipam: {config: [{subnet: 172.30.80.0/24}]}
+  media:
+    name: streamtool-media
+    ipam: {config: [{subnet: 172.30.81.0/24}]}
+  authorization:
+    name: streamtool-authorization
+    internal: true
+    ipam: {config: [{subnet: 172.30.82.0/29}]}

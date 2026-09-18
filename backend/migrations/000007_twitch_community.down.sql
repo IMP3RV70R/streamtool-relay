@@ -1,0 +1,2 @@
+DROP TABLE twitch_community_snapshots,twitch_community_events,twitch_event_receipts,twitch_event_subscriptions,twitch_event_bindings;
+ALTER TABLE twitch_connections DROP COLUMN granted_scopes, DROP COLUMN community_due;

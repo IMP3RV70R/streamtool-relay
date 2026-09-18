@@ -1,0 +1,8 @@
+[
+  {
+    "id": "primary",
+    "generation": 1,
+    "url": "rtmp://receiver:1935/live",
+    "secret_file": "/run/secrets/destination_key"
+  }
+]

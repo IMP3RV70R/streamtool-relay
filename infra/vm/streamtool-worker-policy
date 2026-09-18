@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Root-owned helper on Linux media VMs; invoked before worker activation.
+# /etc/streamtool/worker-network.env is root-owned, never mounted in workers.
+set -euo pipefail
+[[ $# == 3 && $1 =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$ && $2 =~ ^[0-9]+$ && $3 =~ ^[0-9]+$ ]]
+allocation="$1"; ingress_bps="$2"; egress_bps="$3"
+[[ $ingress_bps -ge 1000000 && $ingress_bps -le 10000000000 && $egress_bps -ge 1000000 && $egress_bps -le 10000000000 ]]
+source /etc/streamtool/worker-network.env
+[[ ${WORKER_NETWORK:-} =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$ && $WORKER_NETWORK != host && $WORKER_NETWORK != none ]]
+[[ ${SOURCE_EDGE_IP:-} =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+[[ ${SOURCE_EDGE_PORT:-} =~ ^[0-9]+$ && $SOURCE_EDGE_PORT -ge 1 && $SOURCE_EDGE_PORT -le 65535 ]]
+container="stream-worker-$allocation"
+[[ $(docker inspect --format '{{.HostConfig.NetworkMode}}' "$container") == "$WORKER_NETWORK" ]]
+[[ $(docker inspect --format '{{len .NetworkSettings.Networks}}' "$container") == 1 ]]
+[[ $(docker inspect --format '{{index .Config.Labels "streamtool.allocation"}}' "$container") == "$allocation" ]]
+pid=$(docker inspect --format '{{.State.Pid}}' "$container")
+[[ $pid =~ ^[0-9]+$ && $pid -gt 1 ]]
+# Pin the namespace itself, not a PID which can exit/recycle between commands.
+# Recheck Docker ownership after opening it and categorically reject host netns.
+exec {network_fd}<"/proc/$pid/ns/net"
+network_path="/proc/$$/fd/$network_fd"
+[[ $(docker inspect --format '{{.State.Pid}}' "$container") == "$pid" ]]
+[[ $(readlink "$network_path") != "$(readlink /proc/1/ns/net)" ]]
+ns=(nsenter --net="$network_path" --)
+# Default-deny first: failed installation never activates an unfiltered worker.
+"${ns[@]}" iptables -P OUTPUT DROP
+"${ns[@]}" ip6tables -P OUTPUT DROP
+"${ns[@]}" iptables -F OUTPUT
+"${ns[@]}" ip6tables -F OUTPUT
+"${ns[@]}" iptables -A OUTPUT -o lo -j ACCEPT
+"${ns[@]}" ip6tables -A OUTPUT -o lo -j ACCEPT
+"${ns[@]}" iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+"${ns[@]}" ip6tables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+# The sole private outbound exception is the configured ingest endpoint.
+"${ns[@]}" iptables -A OUTPUT -d "$SOURCE_EDGE_IP" -p udp --dport "$SOURCE_EDGE_PORT" -j ACCEPT
+for cidr in 0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.0.0/24 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16 198.18.0.0/15 198.51.100.0/24 203.0.113.0/24 224.0.0.0/4 240.0.0.0/4; do
+ "${ns[@]}" iptables -A OUTPUT -d "$cidr" -j REJECT
+done
+for type in neighbor-solicitation neighbor-advertisement; do
+ "${ns[@]}" ip6tables -A OUTPUT -p ipv6-icmp --icmpv6-type "$type" -m hl --hl-eq 255 -j ACCEPT
+done
+for cidr in ::/128 ::1/128 ::ffff:0:0/96 64:ff9b::/96 64:ff9b:1::/48 100::/64 2001::/23 2001:db8::/32 2002::/16 3fff::/20 fc00::/7 fe80::/10 ff00::/8; do
+ "${ns[@]}" ip6tables -A OUTPUT -d "$cidr" -j REJECT
+done
+"${ns[@]}" iptables -A OUTPUT -p tcp -j ACCEPT
+"${ns[@]}" ip6tables -A OUTPUT -d 2000::/3 -p tcp -j ACCEPT
+# Host/Agent may reach the authenticated control server; peers may not.
+"${ns[@]}" iptables -P INPUT DROP
+"${ns[@]}" ip6tables -P INPUT DROP
+"${ns[@]}" iptables -A INPUT -i lo -j ACCEPT
+"${ns[@]}" ip6tables -A INPUT -i lo -j ACCEPT
+"${ns[@]}" iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+"${ns[@]}" ip6tables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+for type in neighbor-solicitation neighbor-advertisement; do
+ "${ns[@]}" ip6tables -A INPUT -p ipv6-icmp --icmpv6-type "$type" -m hl --hl-eq 255 -j ACCEPT
+done
+gateway=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' "$container")
+[[ $gateway =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+"${ns[@]}" iptables -A INPUT -s "$gateway" -p tcp --dport 9090 -j ACCEPT
+# Enforce actual bandwidth, not just scheduler reservations. Leave loopback free.
+"${ns[@]}" tc qdisc replace dev eth0 root tbf rate "${egress_bps}bit" burst 256kb latency 100ms
+"${ns[@]}" tc qdisc replace dev eth0 handle ffff: ingress
+"${ns[@]}" tc filter replace dev eth0 parent ffff: protocol all u32 match u32 0 0 police rate "${ingress_bps}bit" burst 256kb drop flowid :1

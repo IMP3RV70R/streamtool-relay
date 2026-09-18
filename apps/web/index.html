@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>streamtool-relay — личный кабинет</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <aside id="sidebar" hidden>
+    <a href="/dashboard" class="brand" data-route="dashboard">/streamtool-relay</a>
+    <p class="nav-label">ЛИЧНЫЙ КАБИНЕТ</p>
+    <nav aria-label="Разделы">
+      <a href="/dashboard" data-route="dashboard">Эфир</a>
+    </nav>
+    <p class="sidebar-note">Ваш сервер<br>Защита эфира</p>
+    <div class="sidebar-account">
+      <span id="identity"></span>
+      <button id="replace-totp" hidden>Сменить аутентификатор</button>
+      <button id="logout" hidden>Выйти</button>
+    </div>
+  </aside>
+  <button id="menu-toggle" type="button" class="secondary" aria-controls="sidebar" aria-expanded="false" hidden>Меню</button>
+  <div id="page-scroll">
+    <main>
+      <h1 id="page-title">Личный кабинет</h1>
+      <p id="page-description">Войдите, чтобы управлять своим эфиром.</p>
+      <p id="notice" role="status" aria-live="polite"></p>
+      <section id="auth" class="card">
+        <h2>Вход в личный кабинет</h2>
+        <form id="auth-form">
+          <label id="setup-token-label" hidden>Код настройки<input id="setup-token" type="password" autocomplete="off"></label>
+          <label id="factor-kind-label">Второй фактор<select id="factor-kind"><option value="totp">Код аутентификатора</option><option value="recovery">Резервный код</option></select></label>
+          <label id="factor-label">Код<input id="factor" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"></label>
+          <label>Пароль<input id="password" type="password" autocomplete="current-password" minlength="12" maxlength="256" required></label>
+          <small>Не менее 12 символов. Аккаунт защищает доступ к настройкам и ключам.</small>
+          <button type="submit" id="submit-auth" disabled>Войти</button>
+        </form>
+        <div id="totp-enrollment" hidden>
+          <p>Добавьте streamtool-relay в приложение-аутентификатор: отсканируйте QR-код или введите ключ вручную.</p>
+          <img id="totp-qr" width="256" height="256" alt="QR-код настройки аутентификатора">
+          <p>Ключ: <code id="totp-secret"></code></p>
+          <p>Сохраните резервные коды отдельно от телефона. Каждый заменяет второй фактор только один раз; пароль всё равно потребуется.</p>
+          <pre id="recovery-codes"></pre>
+          <button type="button" id="download-recovery">Скачать резервные коды</button>
+          <form id="enroll-form">
+            <label><input id="recovery-saved" type="checkbox" required> Я сохранил резервные коды</label>
+            <label>Код из аутентификатора<input id="enroll-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+            <button id="confirm-enrollment" type="submit">Подтвердить настройку</button>
+          </form>
+          <button id="restart-enrollment" type="button">Начать заново</button>
+          <small>Настройка действует 10 минут. QR-код, ключ и резервные коды показываются только на этом шаге.</small>
+        </div>
+        <p id="auth-hint" class="muted">Вход владельца сервера.</p>
+      </section>
+      <div id="cabinet" hidden>
+        <div data-page="dashboard" hidden>
+          <section id="dashboard-empty" class="card">
+            <h2 id="dashboard-empty-title">Маршрутизация ещё не настроена</h2>
+            <p id="dashboard-empty-text">Включите маршрутизацию, чтобы подключить источник и выход.</p>
+            <a class="button" href="#connection">Настроить подключение</a>
+          </section>
+          <section id="controls" class="card" hidden>
+            <h2>Состояние эфира</h2>
+            <strong id="status" class="badge">Проверяем…</strong>
+            <p id="status-detail"></p>
+            <small id="checked"></small>
+            <label><input id="slate-on-loss" type="checkbox"> Показывать заставку при потере сигнала</label>
+            <button id="slate-force" type="button" class="secondary">Показать заглушку</button>
+            <button id="stop" type="button" class="danger" disabled aria-describedby="stop-hint">Завершить эфир</button>
+            <p id="stop-hint" role="status">Проверяем подключение источника…</p>
+          </section>
+          <section id="connection" class="card">
+            <h2>Подключение и защита эфира</h2>
+            <label><input id="routing-enabled" type="checkbox"> Включить сервис</label>
+            <p id="routing-state" role="status">Проверяем состояние…</p>
+            <small>Выключение остановит текущий эфир, но сохранит источник, ключ и выход.</small>
+          </section>
+          <section class="card" data-routing-active hidden>
+            <h2>Источник</h2>
+            <p>Подключите источник по SRT или RTMP: приложение или устройство, отправляющее видео и звук.</p>
+            <p id="source-state" role="status">Готовим подключение…</p>
+            <button id="source-retry" type="button" class="secondary">Обновить подключение</button>
+            <div id="ingest" hidden>
+              <label>SRT-сервер<input id="source-server" readonly></label>
+              <label>RTMP-сервер (альтернативный вход)<input id="source-rtmp" readonly></label>
+              <small>В RTMP используйте путь /UUID_ИСТОЧНИКА?user=publisher&amp;pass=КЛЮЧ. Одновременно разрешено одно подключение: SRT или RTMP.</small>
+              <label>Идентификатор источника<input id="ingest-id" readonly></label>
+              <label>Ключ источника<input id="ingest-key" readonly type="password"></label>
+              <button id="show-key" type="button" class="secondary">Показать / скрыть ключ</button>
+              <p>Stream ID для SRT:</p>
+              <code id="srt-hint"></code>
+              <small>Вместо КЛЮЧ укажите сохранённый ключ. Новый ключ показывается только один раз.</small>
+              <details>
+                <summary>Сменить ключ источника</summary>
+                <p>Старый ключ перестанет работать. Сначала завершите эфир и остановите передачу с источника.</p>
+                <form id="source-key-form">
+                  <label>Пароль аккаунта<input id="source-password" type="password" autocomplete="current-password" minlength="12" required></label>
+                  <button class="danger">Сменить ключ</button>
+                </form>
+              </details>
+            </div>
+          </section>
+          <section class="card" data-routing-active hidden>
+            <h2>Общее качество выходов</h2>
+            <p>По умолчанию: 720p, 30 FPS, 3000 Кбит/с. Можно сразу начинать эфир. При необходимости измените качество выхода до начала передачи: источник и заглушка автоматически приводятся к этим параметрам.</p>
+            <form id="media-form">
+              <label>Ширина<input id="media-width" type="number" min="160" max="1920" step="2" required></label>
+              <label>Высота<input id="media-height" type="number" min="90" max="1920" step="2" required></label>
+              <label>FPS<select id="media-fps"><option value="15/1">15</option><option value="24/1">24</option><option value="25/1">25</option><option value="30000/1001">29.97</option><option value="30/1">30</option><option value="50/1">50</option><option value="60000/1001">59.94</option><option value="60/1">60</option></select></label>
+              <label>Видео, Кбит/с<input id="media-video" type="number" min="100" max="8000" required></label>
+              <label>Аудио, Кбит/с<input id="media-audio" type="number" min="64" max="320" required></label>
+              <button id="media-save">Сохранить профиль</button>
+            </form>
+            <small>H.264/AAC, CBR, ключевой кадр каждые 2 секунды. Для обычного Twitch рекомендуем до 6000 Кбит/с видео. Более высокий битрейт не гарантирует приём площадкой. Enhanced Broadcasting не поддерживается.</small>
+          </section>
+          <section class="card" data-routing-active hidden>
+            <h2>Заглушка</h2>
+            <p>При потере сигнала показываем изображение или зацикленное видео с тишиной.</p>
+            <p id="fallback-info" role="status">Используется стандартная заглушка.</p>
+            <form id="fallback-form">
+              <label>Изображение или видео<input id="fallback-file" type="file" accept="image/png,image/jpeg,video/mp4" required></label>
+              <small>PNG/JPEG до 2073600 пикселей или MP4/H.264 (8 бит, 4:2:0) до 1080p, 30 секунд и 50 МБ. Загрузка до начала эфира; видео зацикливается, звук заменяется тишиной.</small>
+              <button id="fallback-save">Загрузить заглушку</button>
+            </form>
+            <button id="fallback-delete" type="button" class="secondary" hidden>Вернуть стандартную заглушку</button>
+          </section>
+          <section class="card" data-routing-active hidden>
+            <h2>Выходы RTMP/RTMPS</h2>
+            <p>Укажите адрес RTMP/RTMPS и ключ одной площадки: Twitch, YouTube, Kick или другого сервиса.</p>
+            <button id="outputs-refresh" type="button" class="secondary">Обновить выходы</button>
+            <p id="outputs-message" role="status"></p>
+            <div id="outputs-list"></div>
+            <h3 id="output-form-title">Добавить выход</h3>
+            <p>Один источник → автоматическая заглушка при потере сигнала → до 8 выходов.</p>
+            <form id="output-form">
+              <label>Название<input id="output-name" maxlength="140" required placeholder="Например, YouTube или Kick"></label>
+              <label>Адрес сервера RTMP/RTMPS<input id="output-endpoint" maxlength="2048" required placeholder="rtmps://сервер/live"></label>
+              <label>Ключ трансляции<input id="output-secret" type="password" maxlength="4096" autocomplete="new-password" required></label>
+              <small>Ключ хранится зашифрованным и не отображается повторно. При редактировании оставьте поле пустым, чтобы сохранить текущий ключ.</small>
+              <label><input id="output-enabled" type="checkbox" checked> Включён</label>
+              <button id="output-save">Добавить выход</button>
+              <button id="output-cancel" type="button" class="secondary" hidden>Отменить редактирование</button>
+            </form>
+          </section>
+        </div>
+      </div>
+    </main>
+    <footer>streamtool-relay · keep your stream live</footer>
+  </div>
+</body>
+</html>

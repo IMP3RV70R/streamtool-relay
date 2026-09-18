@@ -1,0 +1,1 @@
+DROP TABLE moderation_actions,moderation_messages,moderation_policies;

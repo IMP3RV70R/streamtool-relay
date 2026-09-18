@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS audit_records,leases,reservations,destination_runtimes,worker_allocations,media_nodes,stream_sessions,ingest_connections,destinations,streams,accounts CASCADE;
+DROP TYPE IF EXISTS reservation_state,destination_state,allocation_state,session_phase;

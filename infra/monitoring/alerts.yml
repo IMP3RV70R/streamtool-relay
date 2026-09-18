@@ -1,0 +1,13 @@
+groups:
+  - name: streamtool
+    rules:
+      - alert: DestinationReconnectStorm
+        expr: sum(rate(stream_worker_destination_reconnects_total[5m])) > 1
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "RTMP destinations are repeatedly reconnecting"}
+      - alert: MediaNodeStale
+        expr: time() - streamtool_node_last_seen_seconds > 30
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "Media node heartbeat is stale"}

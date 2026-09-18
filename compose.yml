@@ -1,0 +1,105 @@
+name: streamtool
+
+services:
+  api:
+    build:
+      context: ./backend
+      target: control-api
+    environment:
+      SQLITE_PATH: /data/control.sqlite
+      SQLITE_MIGRATIONS_DIR: /sqlite-migrations
+      STREAMTOOL_ENV: development
+      ENVELOPE_PROVIDER: file
+      ENVELOPE_MANIFEST_FILE: /deployment/keyring.json
+      WEB_DIR: /web
+      AUTH_INSECURE_COOKIES: "true"
+      API_ADDR: :8080
+      SETUP_TOKEN_FILE: /run/secrets/setup_token
+      API_ADMIN_TOKEN_FILE: /run/secrets/admin_token
+      EDGE_CONTROL_TOKEN_FILE: /run/secrets/edge_control_token
+      EDGE_READ_KEY_FILE: /run/secrets/edge_read_key
+      ALLOWED_DESTINATION_HOSTS: receiver
+    secrets: [setup_token, envelope_key, admin_token, edge_control_token, edge_read_key]
+    volumes: [sqlite-data:/data, ./apps/web:/web:ro, ./infra/local/keyring.json:/deployment/keyring.json:ro]
+    ports: ["127.0.0.1:${API_PORT:-8080}:8080"]
+  edge:
+    image: bluenviron/mediamtx:1.21.0
+    volumes:
+      - ./infra/local/edge.yml:/mediamtx.yml:ro
+    ports:
+      - "8890:8890/udp"
+      - "9997:9997"
+    restart: unless-stopped
+
+  receiver:
+    image: bluenviron/mediamtx:1.21.0
+    volumes:
+      - ./infra/local/receiver.yml:/mediamtx.yml:ro
+      - ./.artifacts/recordings:/recordings
+    ports:
+      - "1935:1935"
+      - "9998:9997"
+    restart: unless-stopped
+
+  publisher:
+    build: {context: ./backend, target: fixture-publisher}
+    command: ["videotestsrc", "is-live=true", "!", "video/x-raw,width=1280,height=720,framerate=30/1", "!", "x264enc", "tune=zerolatency", "speed-preset=ultrafast", "bitrate=3000", "key-int-max=60", "!", "h264parse", "!", "mpegtsmux", "name=mux", "!", "srtsink", "uri=srt://edge:8890?streamid=publish:fixture", "audiotestsrc", "is-live=true", "!", "audioconvert", "!", "avenc_aac", "bitrate=160000", "!", "aacparse", "!", "mux."]
+    depends_on: [edge]
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      target: stream-worker
+      args:
+        VERSION: local
+    environment:
+      WORKER_CONTROL_TOKEN_FILE: /run/secrets/worker_control_token
+      STREAMTOOL_ENV: development
+      ALLOWED_DESTINATION_HOSTS: receiver
+      WORKER_SESSION_ID: 123e4567-e89b-12d3-a456-426614174000
+      WORKER_SOURCE_URL: srt://edge:8890?streamid=read:fixture
+      WORKER_SOURCE_TOKEN_FILE: /run/secrets/source_token
+      WORKER_DESTINATIONS_FILE: /run/config/destinations.json
+      WORKER_QUEUE_MAX_BYTES: "8388608"
+      WORKER_RECONNECT_MIN: 1s
+      WORKER_RECONNECT_MAX: 15s
+      WORKER_RECONNECT_MAX_ATTEMPTS: "10"
+      WORKER_STABLE_INTERVAL: 30s
+      WORKER_SHUTDOWN_TIMEOUT: 10s
+      WORKER_METRICS_ADDR: :9090
+    secrets:
+      - worker_control_token
+      - source_token
+      - destination_key
+    volumes:
+      - ./infra/local/destinations.json:/run/config/destinations.json:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - edge
+      - receiver
+      - publisher
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 12s
+
+secrets:
+  setup_token: {file: infra/local/secrets/setup_token}
+  admin_token:
+    file: infra/local/secrets/admin_token
+  edge_control_token:
+    file: infra/local/secrets/edge_control_token
+  edge_read_key:
+    file: infra/local/secrets/edge_read_key
+  worker_control_token:
+    file: infra/local/secrets/worker_control_token
+  envelope_key:
+    file: infra/local/secrets/envelope_key
+  source_token:
+    file: infra/local/secrets/source_token
+  destination_key:
+    file: infra/local/secrets/destination_key
+
+volumes:
+  sqlite-data:

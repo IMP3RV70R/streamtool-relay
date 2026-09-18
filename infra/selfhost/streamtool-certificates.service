@@ -1,0 +1,10 @@
+[Unit]
+Description=streamtool-relay private certificate renewal in an idle window
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/libexec/streamtool-maintenance/renew.py
+User=root
+UMask=0077

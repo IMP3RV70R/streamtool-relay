@@ -1,0 +1,32 @@
+logLevel: info
+rtsp: false
+rtmp: true
+rtmpAddress: :1935
+hls: false
+webrtc: false
+moq: false
+srt: false
+api: true
+apiAddress: :9997
+metrics: false
+pprof: false
+
+authMethod: internal
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+      - action: read
+      - action: api
+
+pathDefaults:
+  source: publisher
+  record: true
+  recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: mpegts
+  recordSegmentDuration: 2s
+
+paths:
+  all_others:

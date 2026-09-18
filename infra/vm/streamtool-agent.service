@@ -1,0 +1,30 @@
+[Unit]
+Description=streamtool-relay Media Node Agent
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+User=streamtool-agent
+Group=streamtool-agent
+SupplementaryGroups=docker
+StateDirectory=streamtool
+StateDirectoryMode=0700
+Environment=AGENT_STATE_FILE=/var/lib/streamtool/fence.json
+EnvironmentFile=/etc/streamtool/node.env
+ExecStart=/usr/local/bin/node-agent
+Restart=always
+RestartSec=2
+LimitNOFILE=1048576
+# The audited root helper installs rules in worker netns before activation.
+# NoNewPrivileges would prohibit sudo for this helper; Docker access already
+# makes this Agent part of the host trust boundary.
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/run/streaming
+RuntimeDirectory=streaming
+RuntimeDirectoryMode=0750
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,2 @@
+# Install root-owned as /etc/sudoers.d/streamtool-agent (0440), validate visudo -cf.
+streamtool-agent ALL=(root) NOPASSWD: /usr/local/libexec/streamtool-worker-policy *

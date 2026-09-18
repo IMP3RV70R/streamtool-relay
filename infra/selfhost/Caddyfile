@@ -1,0 +1,18 @@
+{$DOMAIN} {
+    tls {
+        issuer acme {
+            dir https://acme-v02.api.letsencrypt.org/directory
+            profile {$ACME_PROFILE:tlsserver}
+        }
+    }
+    header Strict-Transport-Security "max-age=31536000"
+    @operator path /v1/installation /v1/accounts /v1/accounts/* /v1/streams /v1/streams/* /v1/sessions/* /v1/nodes/* /v1/destinations/* /operator* /v1/edge/*
+    respond @operator 404
+    reverse_proxy https://api:8080 {
+        transport http {
+            tls_trust_pool file /certs/ca.crt
+            tls_server_name api
+        }
+        header_up Host {http.request.host}
+    }
+}

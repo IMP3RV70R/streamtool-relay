@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>streamtool-relay — управление эфиром</title>
+<style>
+body{font:16px system-ui;max-width:880px;margin:3rem auto;padding:0 1rem;background:#10151c;color:#edf2f7}input,button,a.action{font:inherit;padding:.7rem;margin:.3rem 0;border-radius:8px;border:1px solid #455268}input{background:#19212c;color:inherit;width:100%;box-sizing:border-box}button,a.action{background:#6543ad;color:white;cursor:pointer;display:inline-block}button:disabled{opacity:.5;cursor:wait}section{background:#19212c;padding:1rem;margin:1rem 0;border-radius:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}label{display:block;margin-top:1rem}.hint{color:#b3c0d1}a{color:#c2aaff}#message{min-height:1.5rem}#authorize[hidden]{display:none}
+</style>
+<h1>Управление эфиром</h1>
+<p class="hint">Служебная панель оператора. Токен хранится только в памяти этой страницы.</p>
+<label>Токен оператора<input id="token" type="password" autocomplete="off"></label>
+<label>Идентификатор трансляции<input id="stream" placeholder="Stream UUID"></label>
+<button id="refresh">Обновить статус</button> <button id="stop">Завершить эфир</button>
+<p id="message" role="status"></p>
+<section><h2>Эфир на сервере</h2><pre id="local">Выбери трансляцию.</pre></section>
+<script>
+const el=id=>document.getElementById(id);
+let sessionID=null;
+const path=()=>'/v1/streams/'+encodeURIComponent(el('stream').value.trim());
+async function api(method,url,body){
+ const r=await fetch(url,{method,headers:{'Authorization':'Bearer '+el('token').value,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+ const text=await r.text();let data;try{data=text?JSON.parse(text):null}catch{data={error:'Неверный ответ сервера'}}
+ if(!r.ok)throw Error(data.error||'Ошибка запроса');return data;
+}
+async function action(fn){el('message').textContent='Выполняется…';try{await fn();el('message').textContent='Готово.'}catch(e){el('message').textContent=e.message}}
+async function refresh(){
+ sessionID=null;
+ try{const data=await api('GET',path()+'/status');sessionID=data.session.session_id;el('local').textContent=JSON.stringify(data,null,2)}catch(e){el('local').textContent=e.message}
+
+}
+el('stream').oninput=()=>{sessionID=null};
+el('refresh').onclick=()=>action(refresh);
+el('stop').onclick=()=>action(async()=>{const data=await api('GET',path()+'/status');await api('POST','/v1/sessions/'+encodeURIComponent(data.session.session_id)+'/stop',{});await refresh()});
+</script>
+</html>

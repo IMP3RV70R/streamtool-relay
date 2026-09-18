@@ -1,0 +1,5 @@
+ALTER TABLE account_cameras RENAME TO account_sources;
+ALTER TABLE account_sources RENAME CONSTRAINT account_cameras_pkey TO account_sources_pkey;
+ALTER TABLE account_sources RENAME CONSTRAINT account_cameras_stream_id_key TO account_sources_stream_id_key;
+ALTER TABLE account_sources RENAME CONSTRAINT account_cameras_account_id_fkey TO account_sources_account_id_fkey;
+ALTER TABLE account_sources RENAME CONSTRAINT account_cameras_stream_id_fkey TO account_sources_stream_id_fkey;

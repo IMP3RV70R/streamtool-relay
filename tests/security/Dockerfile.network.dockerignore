@@ -1,0 +1,9 @@
+**
+!infra/
+!infra/vm/
+!infra/vm/streamtool-worker-policy
+!tests/
+!tests/security/
+!tests/security/Dockerfile.network
+!tests/security/network.env
+!tests/security/network_probe.py

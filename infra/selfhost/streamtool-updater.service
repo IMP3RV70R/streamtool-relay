@@ -1,0 +1,20 @@
+[Unit]
+Description=streamtool-relay independent update and rollback coordinator
+After=docker.service network-online.target
+Requires=docker.service
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /usr/local/libexec/streamtool-updater/updater.py resume
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=7200
+TimeoutStopSec=20
+# Never replaced or stopped by the application transaction it supervises.
+
+[Install]
+WantedBy=multi-user.target

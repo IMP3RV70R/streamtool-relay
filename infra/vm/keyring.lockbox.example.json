@@ -1,0 +1,7 @@
+{
+  "current": "envelope-v2",
+  "keys": {
+    "local-v1": {"secret_id": "DEPLOYMENT_SECRET_ID", "version_id": "IMPORTED_EXISTING_KEY_VERSION", "entry": "envelope"},
+    "envelope-v2": {"secret_id": "DEPLOYMENT_SECRET_ID", "version_id": "NEW_KEY_VERSION", "entry": "envelope"}
+  }
+}

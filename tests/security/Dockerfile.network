@@ -1,0 +1,6 @@
+FROM docker:29.8.1-cli
+RUN apk upgrade --no-cache && apk add --no-cache bash util-linux iptables iproute2 python3 curl
+COPY infra/vm/streamtool-worker-policy /usr/local/libexec/streamtool-worker-policy
+COPY tests/security/network.env /etc/streamtool/worker-network.env
+COPY tests/security/network_probe.py /probe.py
+ENTRYPOINT ["bash"]

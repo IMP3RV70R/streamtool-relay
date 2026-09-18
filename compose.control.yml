@@ -1,0 +1,88 @@
+name: streamtool-control
+services:
+  api:
+    build: {context: ./backend, target: control-api}
+    environment:
+      SQLITE_PATH: /data/control.sqlite
+      SQLITE_MIGRATIONS_DIR: /sqlite-migrations
+      WEB_DIR: /web
+      PUBLIC_RTMP_URL: ${PUBLIC_RTMP_URL:-rtmp://localhost:11935}
+      PUBLIC_SRT_URL: ${PUBLIC_SRT_URL:-srt://localhost:18890}
+      AUTH_INSECURE_COOKIES: "true"
+      STREAMTOOL_ENV: development
+      ENVELOPE_PROVIDER: file
+      ENVELOPE_MANIFEST_FILE: /deployment/keyring.json
+      EDGE_AUTH_ADDR: :8082
+      EDGE_AUTH_PEER_CIDRS: 172.31.250.3/32
+      SETUP_TOKEN_FILE: /run/secrets/setup_token
+      API_ADMIN_TOKEN_FILE: /run/secrets/admin_token
+      EDGE_CONTROL_TOKEN_FILE: /run/secrets/edge_control_token
+      EDGE_READ_KEY_FILE: /run/secrets/edge_read_key
+      ALLOWED_DESTINATION_HOSTS: receiver
+      MEDIA_NODES_FILE: /deployment/media-nodes.json
+      AGENT_CA_FILE: /certs/ca.crt
+      CONTROLLER_CERT_FILE: /certs/controller.crt
+      CONTROLLER_KEY_FILE: /certs/controller.key
+      NODE_REGION: local
+      WORKER_IMAGE: streamtool-managed-worker:local
+      EDGE_ID: local-edge
+      EDGE_API_URL: http://edge:9997
+      EDGE_SRT_URL: srt://edge:8890
+    secrets: [setup_token, envelope_key, admin_token, edge_control_token, edge_read_key]
+    volumes: [sqlite-data:/data, ./.artifacts/control-certs:/certs:ro, ./apps/web:/web:ro, ./.artifacts/control-media-nodes.json:/deployment/media-nodes.json:ro, ./infra/local/keyring.json:/deployment/keyring.json:ro]
+    networks:
+      default:
+      edge-auth: {ipv4_address: 172.31.250.2}
+    ports: ["127.0.0.1:${CONTROL_API_PORT:-18080}:8080"]
+    restart: unless-stopped
+  agent:
+    build: {context: ./backend, target: node-agent}
+    environment:
+      NODE_ID: ${CONTROL_TEST_NODE_ID:-00000000-0000-4000-8000-000000000002}
+      NODE_SLOTS: "1"
+      NODE_CPU_MILLIS: ${CONTROL_NODE_CPU_MILLIS:-4000}
+      AGENT_CA_FILE: /certs/ca.crt
+      AGENT_CERT_FILE: /certs/agent.crt
+      AGENT_KEY_FILE: /certs/agent.key
+      AGENT_STATE_FILE: /var/lib/streamtool/fence.json
+      WORKER_NETWORK: streamtool-control_default
+      WORKER_IMAGE: streamtool-managed-worker:local
+      STREAMTOOL_ENV: development
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.artifacts/control-certs:/certs:ro
+      - agent-state:/var/lib/streamtool
+    restart: unless-stopped
+  edge:
+    image: bluenviron/mediamtx:1.21.0
+    volumes: [./infra/local/edge-managed.yml:/mediamtx.yml:ro]
+    ports: ["${CONTROL_SRT_PORT:-18890}:8890/udp", "${CONTROL_RTMP_PORT:-11935}:1935"]
+    restart: unless-stopped
+    networks:
+      default:
+      edge-auth: {ipv4_address: 172.31.250.3}
+  receiver:
+    image: bluenviron/mediamtx:1.21.0
+    volumes: [./infra/local/receiver.yml:/mediamtx.yml:ro]
+    ports: ["127.0.0.1:${CONTROL_RECEIVER_API_PORT:-19998}:9997"]
+  worker:
+    profiles: [tools]
+    image: streamtool-managed-worker:local
+    build: {context: ./backend, target: stream-worker}
+  publisher:
+    profiles: [tools]
+    build: {context: ./backend, target: fixture-publisher}
+secrets:
+  setup_token: {file: infra/local/secrets/setup_token}
+  envelope_key: {file: infra/local/secrets/envelope_key}
+  admin_token: {file: infra/local/secrets/admin_token}
+  edge_control_token: {file: infra/local/secrets/edge_control_token}
+  edge_read_key: {file: infra/local/secrets/edge_read_key}
+volumes:
+  sqlite-data:
+  agent-state:
+networks:
+  edge-auth:
+    internal: true
+    ipam:
+      config: [{subnet: 172.31.250.0/29}]

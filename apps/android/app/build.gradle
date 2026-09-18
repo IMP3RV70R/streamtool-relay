@@ -1,0 +1,85 @@
+plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.plugin.compose' }
+android {
+ namespace 'dev.streamtool.app'
+ compileSdk 36
+ defaultConfig {
+  applicationId 'dev.streamtool.app'; minSdk 26; targetSdk 36
+  versionCode 3; versionName '0.3.0'
+  testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+ }
+ buildFeatures { buildConfig true; compose true }
+ sourceSets.main.assets.srcDir layout.buildDirectory.dir('installerApkAssets').get().asFile
+ buildTypes { release { minifyEnabled false } }
+ compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+// The first verifier is compiled independently and delivered by the trusted APK;
+// a downloaded bundle is never permitted to verify itself.
+['amd64', 'arm64'].each { architecture ->
+ tasks.register("installerVerifier${architecture.capitalize()}", Exec) {
+  workingDir '../../../backend'
+  inputs.files(fileTree('../../../backend') { include 'go.mod', 'go.sum', 'cmd/release-tool/**', 'internal/release/**' })
+  def output = layout.buildDirectory.file("installerVerifiers/release-tool-${architecture}")
+  outputs.file(output)
+  environment 'GOOS', 'linux'; environment 'GOARCH', architecture; environment 'CGO_ENABLED', '0'
+  doFirst { output.get().asFile.parentFile.mkdirs() }
+  commandLine 'go', 'build', '-trimpath', '-ldflags=-s -w', '-o', output.get().asFile.absolutePath, './cmd/release-tool'
+ }
+}
+tasks.register('installerDistribution') {
+ def configured = providers.gradleProperty('installerDistribution').map { file(it) }
+ if (configured.isPresent()) inputs.file(configured)
+ def output = layout.buildDirectory.file('installerConfig/distribution.json')
+ outputs.file(output)
+ doLast {
+  def text = configured.isPresent() ? configured.get().getText('UTF-8') : '{"enabled":false}'
+  if (configured.isPresent()) {
+   def data = new groovy.json.JsonSlurper().parseText(text)
+   if (data.keySet() != ['public_key','channel','artifact_origin','manifest_url','signature_url'].toSet() ||
+       !(data.channel in ['stable','preview']) || data.public_key.decodeBase64().length != 32) throw new GradleException('Invalid installer distribution trust')
+   def origin = new URI(data.artifact_origin)
+   if (origin.scheme != 'https' || !origin.host || origin.rawUserInfo || origin.rawQuery || origin.rawFragment || origin.path || !(origin.port in [-1,443])) throw new GradleException('Invalid installer artifact origin')
+   [data.manifest_url, data.signature_url].each { value ->
+    def uri = new URI(value)
+    if (uri.scheme != 'https' || uri.rawAuthority != origin.rawAuthority || uri.rawUserInfo || uri.rawQuery || uri.rawFragment) throw new GradleException('Invalid installer metadata URL')
+   }
+   text = groovy.json.JsonOutput.toJson(new TreeMap(data))
+  }
+  output.get().asFile.parentFile.mkdirs(); output.get().asFile.setText(text, 'UTF-8')
+ }
+}
+tasks.register('installerAssets', Sync) {
+ dependsOn 'installerVerifierAmd64', 'installerVerifierArm64', 'installerDistribution'
+ from('../../../infra/selfhost') { include 'installer.py', 'installer_application.py', 'deploy.py' }
+ from(layout.buildDirectory.dir('installerVerifiers'))
+ from(layout.buildDirectory.dir('installerConfig'))
+ into(layout.buildDirectory.dir('installerAssets'))
+}
+tasks.register('installerPayload', Zip) {
+ dependsOn 'installerAssets'
+ from(layout.buildDirectory.dir('installerAssets'))
+ archiveFileName = 'installer-payload.zip'
+ destinationDirectory = layout.buildDirectory.dir('installerPayload')
+ preserveFileTimestamps = false; reproducibleFileOrder = true
+}
+tasks.register('installerApkAssets', Sync) {
+ dependsOn 'installerPayload'
+ from(layout.buildDirectory.dir('installerAssets')) { include 'installer.py', 'distribution.json' }
+ from(layout.buildDirectory.dir('installerPayload'))
+ into(layout.buildDirectory.dir('installerApkAssets'))
+}
+tasks.named('preBuild').configure { dependsOn 'installerApkAssets' }
+dependencies {
+ implementation 'com.github.mwiede:jsch:2.28.6'
+ implementation platform('androidx.compose:compose-bom:2026.06.00')
+ implementation 'androidx.compose.material3:material3'
+ implementation 'androidx.activity:activity-compose:1.13.0'
+ implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0'
+ implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.10.0'
+ implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+ testImplementation 'junit:junit:4.13.2'
+ androidTestImplementation platform('androidx.compose:compose-bom:2026.06.00')
+ androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+ androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+ androidTestImplementation 'androidx.test:runner:1.7.0'
+ debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}

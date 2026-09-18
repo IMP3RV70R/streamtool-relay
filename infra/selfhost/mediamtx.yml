@@ -1,0 +1,24 @@
+logLevel: warn
+rtsp: false
+rtmp: true
+rtmpAddress: :1935
+hls: false
+webrtc: false
+moq: false
+srt: true
+srtAddress: :8890
+api: true
+apiAddress: :9997
+apiEncryption: true
+apiServerCert: /certs/edge.crt
+apiServerKey: /certs/edge.key
+metrics: false
+pprof: false
+authMethod: http
+authHTTPAddress: https://172.30.82.2:8082/v1/edge/auth
+authHTTPExclude: []
+pathDefaults:
+  source: publisher
+  overridePublisher: false
+paths:
+  all_others:

@@ -1,0 +1,32 @@
+name: streamtool-cabinet
+services:
+  api:
+    build:
+      context: ./backend
+      target: control-api
+    environment:
+      SQLITE_PATH: /data/control.sqlite
+      SQLITE_MIGRATIONS_DIR: /sqlite-migrations
+      WEB_DIR: /web
+      AUTH_INSECURE_COOKIES: "true"
+      STREAMTOOL_ENV: development
+      ENVELOPE_PROVIDER: file
+      ENVELOPE_MANIFEST_FILE: /deployment/keyring.json
+      SETUP_TOKEN_FILE: /local-secrets/setup_token
+      API_ADMIN_TOKEN_FILE: /local-secrets/admin_token
+      EDGE_CONTROL_TOKEN_FILE: /local-secrets/edge_control_token
+      EDGE_READ_KEY_FILE: /local-secrets/edge_read_key
+    volumes:
+      - sqlite-data:/data
+      - ./.artifacts/cabinet-secrets/setup_token:/local-secrets/setup_token:ro
+      - ./apps/web:/web:ro
+      - ./infra/local/cabinet-keyring.json:/deployment/keyring.json:ro
+      - ./.artifacts/cabinet-secrets/envelope_key:/local-secrets/envelope_key:ro
+      - ./.artifacts/cabinet-secrets/admin_token:/local-secrets/admin_token:ro
+      - ./.artifacts/cabinet-secrets/edge_control_token:/local-secrets/edge_control_token:ro
+      - ./.artifacts/cabinet-secrets/edge_read_key:/local-secrets/edge_read_key:ro
+    ports:
+      - "127.0.0.1:${CABINET_PORT:-18080}:8080"
+    restart: unless-stopped
+volumes:
+  sqlite-data:

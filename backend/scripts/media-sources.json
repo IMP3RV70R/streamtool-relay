@@ -1,0 +1,17 @@
+{
+  "version": "1.28.7",
+  "utility": {
+    "name":"util-linux",
+    "version":"2.42.3",
+    "url":"https://mirrors.edge.kernel.org/pub/linux/utils/util-linux/v2.42/util-linux-2.42.3.tar.xz",
+    "sha256":"66ac7c0e725278eb2b039e3104f2c91119341d941b41bac7a285c695f940bd57",
+    "options":["--disable-all-programs","--enable-libblkid","--enable-libmount","--disable-nls","--without-python","CPPFLAGS=-include linux/openat2.h"]
+  },
+  "components": [
+    {"name":"gstreamer","sha256":"787329b2c5758e228a71d926a6dcf960bceaacca3cadd63874ba665dfcda013e","options":["tools=enabled","ptp-helper=disabled"]},
+    {"name":"gst-plugins-base","sha256":"ed6e5410f496d171818763af2265e7977154bc7f9b827e98acf8c5bed21dd5a7","options":["app=enabled","audioconvert=enabled","audioresample=enabled","audiotestsrc=enabled","videoconvertscale=enabled","videorate=enabled","videotestsrc=enabled","orc=enabled"]},
+    {"name":"gst-plugins-good","sha256":"87256969c82cf3bc8574301f3e7044a90de0ac500a5a27d8ba38c4dde894dd8b","options":["audioparsers=enabled","flv=enabled","imagefreeze=enabled","isomp4=enabled","png=enabled","orc=enabled"]},
+    {"name":"gst-plugins-bad","sha256":"dc525383c18b2c265bbe6a43d498656cd918aaa130aa4e3abeabcdaa741c3ffe","options":["debugutils=enabled","inter=enabled","mpegtsdemux=enabled","videoparsers=enabled","faad=enabled","openh264=enabled","rtmp=enabled","srt=enabled","voaacenc=enabled","gpl=enabled","orc=enabled"]},
+    {"name":"gst-plugins-ugly","sha256":"2b681170ddc22b6b283cafeed48f427c30a17056974a6a9ed137c354e0f7730c","options":["x264=enabled","gpl=enabled","orc=enabled"]}
+  ]
+}

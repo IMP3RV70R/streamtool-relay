@@ -1,0 +1,2 @@
+DROP TABLE account_twitch_channels;
+ALTER TABLE twitch_channels DROP CONSTRAINT twitch_channels_account_identity;

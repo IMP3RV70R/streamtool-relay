@@ -1,0 +1,15 @@
+[Unit]
+Description=streamtool-relay emergency disk space before Docker startup
+After=local-fs.target
+Before=docker.service streamtool-updater.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /usr/local/libexec/streamtool-updater/updater.py release-space
+TimeoutStartSec=60
+# No Docker or application dependency: their startup may need this reserved space.
+
+[Install]
+WantedBy=multi-user.target docker.service

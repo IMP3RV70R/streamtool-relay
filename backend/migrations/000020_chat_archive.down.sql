@@ -1,0 +1,5 @@
+DROP TABLE twitch_chat_clears;
+DROP TABLE twitch_chat_user_clears;
+DROP TABLE twitch_chat_message_tombstones;
+DROP TABLE twitch_chat_author_days,twitch_chat_minute_authors,twitch_chat_minutes,chat_archive_segments,chat_archive_queue;
+ALTER TABLE twitch_community_events DROP COLUMN archived_at;

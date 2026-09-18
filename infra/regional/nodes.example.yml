@@ -1,0 +1,13 @@
+regions:
+  eu-central:
+    ingest_endpoint: ingest-eu.example.net
+    edges: [edge-eu-a, edge-eu-b]
+    nodes:
+      - {id: media-eu-a, slots: 32, cpu_millis: 24000, memory_bytes: 34359738368, ingress_bps: 2000000000, egress_bps: 8000000000}
+      - {id: media-eu-b, slots: 32, cpu_millis: 24000, memory_bytes: 34359738368, ingress_bps: 2000000000, egress_bps: 8000000000}
+  us-east:
+    ingest_endpoint: ingest-us.example.net
+    edges: [edge-us-a, edge-us-b]
+    nodes:
+      - {id: media-us-a, slots: 32, cpu_millis: 24000, memory_bytes: 34359738368, ingress_bps: 2000000000, egress_bps: 8000000000}
+      - {id: media-us-b, slots: 32, cpu_millis: 24000, memory_bytes: 34359738368, ingress_bps: 2000000000, egress_bps: 8000000000}

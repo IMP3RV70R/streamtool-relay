@@ -1,0 +1,25 @@
+[Unit]
+Description=streamtool-relay restricted local updater bridge
+After=local-fs.target
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /usr/local/libexec/streamtool-updater/updater_bridge.py serve
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/streamtool-updater
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_UNIX
+# This service only persists requests and asks systemd to start the independent
+# updater. Application transactions never replace/stop this runtime or unit.
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,19 @@
+[Unit]
+Description=streamtool-relay Control API
+After=network-online.target
+
+[Service]
+User=streamtool
+EnvironmentFile=/etc/streamtool/api.env
+ExecStart=/usr/local/bin/api
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/etc/streamtool
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
