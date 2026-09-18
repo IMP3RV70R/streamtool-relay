@@ -117,3 +117,65 @@ func TestSQLiteObservationOrderingAtStoredPrecision(t *testing.T) {
 		t.Fatal("stale connect resurrected publisher", status, err)
 	}
 }
+
+func TestAlwaysOnSourceMigrationPreservesKeyAndIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	migrations := filepath.Join(dir, "migrations")
+	if err := os.Mkdir(migrations, 0700); err != nil {
+		t.Fatal(err)
+	}
+	paths, err := filepath.Glob("../../sqlite-migrations/*.up.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range paths {
+		if filepath.Base(path) >= "000008" {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(migrations, filepath.Base(path)), data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, err := Open(ctx, filepath.Join(dir, "control.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err := s.Migrate(ctx, migrations); err != nil {
+		t.Fatal(err)
+	}
+	account, err := s.CreateAccount(ctx, "owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var id string
+	if err := s.Pool.QueryRow(ctx, `INSERT INTO streams(account_id,name,enabled,ingest_key_hash,generation) VALUES(?1,'Источник',false,?2,12) RETURNING id`, account, []byte("preserved-hash")).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Pool.Exec(ctx, `INSERT INTO account_sources(account_id,stream_id) VALUES(?1,?2)`, account, id); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile("../../sqlite-migrations/000008_always_on_source.up.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(migrations, "000008_always_on_source.up.sql"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if err := s.Migrate(ctx, migrations); err != nil {
+			t.Fatal(err)
+		}
+		var enabled bool
+		var hash []byte
+		var generation int
+		if err := s.Pool.QueryRow(ctx, `SELECT enabled,ingest_key_hash,generation FROM streams WHERE id=?1`, id).Scan(&enabled, &hash, &generation); err != nil || !enabled || string(hash) != "preserved-hash" || generation != 13 {
+			t.Fatal("migration changed identity or was not idempotent", enabled, generation, err)
+		}
+	}
+}

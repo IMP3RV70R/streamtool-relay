@@ -34,6 +34,10 @@ No stable production release or public update feed is configured.
 
 ## Stream behavior
 
+Routing is always available. Clients provision the source automatically after owner
+authentication; there is no global routing switch. Individual outputs can still be
+disabled. Provisioning alone does not start an encoder or broadcast.
+
 One continuous H.264/AAC encoder receives decoded source or fallback; all outputs
 share its quality. Separate bounded queues/muxers/sinks isolate destination failure,
 retry and edits from peers and the encoder. Each session has its own isolated worker.

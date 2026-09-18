@@ -16,7 +16,7 @@ const assert = require('node:assert/strict');
       switch (path) {
         case '/v1/me': body = {account_id:'owner-test-account'}; break;
         case '/v1/auth/setup': body={required:false}; break;
-        case '/v1/me/source': body = {enabled: true, source_id: 'ui-source', media_configured: true}; break;
+        case '/v1/me/source': body = {source_id: 'ui-source', media_configured: true}; break;
         case '/v1/me/source/fallback': body=null; break;
         case '/v1/me/source/media': body={width:1280,height:720,fps_num:30,fps_den:1,video_kbps:3000,audio_kbps:160,generation:1}; break;
         case '/v1/me/source/outputs': body=[]; break;

@@ -6,7 +6,7 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
   const r=route.request(),path=new URL(r.url()).pathname,method=r.method();let result={},status=200;
   if(path==='/v1/me')result={account_id:'owner-test-account'};
   else if(path==='/v1/auth/setup')result={required:false};
-  else if(path==='/v1/me/source')result={source_id:'ui-source',enabled:true,media_configured:true,srt_url:'srt://example.invalid:8890',rtmp_url:'rtmp://example.invalid/live'};
+  else if(path==='/v1/me/source')result={source_id:'ui-source',media_configured:true,srt_url:'srt://example.invalid:8890',rtmp_url:'rtmp://example.invalid/live'};
   else if(path==='/v1/me/source/fallback')result=null;
   else if(path==='/v1/me/source/media')result={width:1280,height:720,fps_num:30,fps_den:1,video_kbps:3000,audio_kbps:160,generation:1};
   else if(path==='/v1/me/source/slate')result={on_source_loss:true,forced:false,generation:1};

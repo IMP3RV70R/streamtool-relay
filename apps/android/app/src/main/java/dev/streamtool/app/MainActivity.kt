@@ -123,7 +123,6 @@ private fun Cabinet(model: CabinetModel, installation: InstallationModel) {
                     Text(state.server)
                     Text("Владелец сервера")
                     TextButton(onClick = { model.refreshAll() }, enabled = !state.busy) { Text("Обновить состояние") }
-                    Routing(model, state)
                     if (state.source != null) {
                         Credentials(model, state)
                         Broadcast(model, state)
@@ -296,7 +295,14 @@ private fun Enroll(model: CabinetModel, enrollment: Enrollment, busy: Boolean) {
     }.getOrNull() }
     Text("Добавьте аутентификатор", style = MaterialTheme.typography.titleLarge)
     qr?.let { Image(it, "QR-код аутентификатора", modifier = Modifier.size(240.dp)) }
+    Text("На этом телефоне скопируйте ключ и добавьте его вручную в приложении-аутентификаторе.")
     Text("Ключ для ручной настройки: ${enrollment.secret}")
+    TextButton(onClick = {
+        val clip = ClipData.newPlainText("Ключ аутентификатора streamtool-relay", enrollment.secret)
+        clip.description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
+    }, enabled = !busy) { Text("Скопировать ключ аутентификатора") }
+    Text("Имя: streamtool-relay. Тип: по времени (TOTP), 6 цифр, период 30 секунд. Затем вернитесь сюда и введите полученный код.")
     Text("Резервные коды показываются только сейчас. Сохраните их отдельно от телефона.")
     Text(enrollment.recovery.joinToString("\n"))
     TextButton(onClick = { file.launch("streamtool-relay-recovery-codes.txt") }, enabled = !busy) { Text("Сохранить резервные коды") }
@@ -308,32 +314,37 @@ private fun Enroll(model: CabinetModel, enrollment: Enrollment, busy: Boolean) {
     Text("Настройка действует 10 минут. После подтверждения дождитесь нового TOTP-кода для следующего входа.")
 }
 @Composable
-private fun Routing(model: CabinetModel, state: CabinetState) {
-    var disable by remember { mutableStateOf(false) }
-    val enabled = state.source?.optBoolean("enabled") == true
-    Text("Источник", style = MaterialTheme.typography.titleLarge)
-    Text(if (enabled) "Маршрутизация включена" else "Маршрутизация выключена")
-    Button(onClick = { if (enabled) disable = true else model.routing(true) }, enabled = !state.busy) { Text(if (enabled) "Выключить сервис" else "Включить сервис") }
-    if (disable) AlertDialog(onDismissRequest = { disable = false }, title = { Text("Выключить сервис?") }, text = { Text("Текущий эфир остановится. Настройки и ключи сохранятся.") },
-        confirmButton = { TextButton(onClick = { disable = false; model.routing(false) }) { Text("Выключить") } }, dismissButton = { TextButton(onClick = { disable = false }) { Text("Отмена") } })
+private fun CopyConnectionValue(label: String, value: String, sensitive: Boolean = false) {
+    val context = LocalContext.current
+    TextButton(onClick = {
+        val clip = ClipData.newPlainText(label, value)
+        if (sensitive) clip.description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
+        if (Build.VERSION.SDK_INT < 33) android.widget.Toast.makeText(context, "Скопировано", android.widget.Toast.LENGTH_SHORT).show()
+    }, enabled = value.isNotBlank()) { Text(label) }
 }
 @Composable
 private fun Credentials(model: CabinetModel, state: CabinetState) {
-    val context = LocalContext.current
     var password by remember { mutableStateOf("") }; var rotation by remember { mutableStateOf(false) }
     Text("Подключение SRT/RTMP", style = MaterialTheme.typography.titleLarge)
-    Text("SRT: ${state.source?.optString("srt_url")}"); Text("RTMP: ${state.source?.optString("rtmp_url")}")
-    Text("Идентификатор источника: ${state.source?.optString("source_id")}")
+    val srt = state.source?.optString("srt_url").orEmpty()
+    val rtmp = state.source?.optString("rtmp_url").orEmpty()
+    val sourceId = state.source?.optString("source_id").orEmpty()
+    Text("SRT-сервер: $srt")
+    CopyConnectionValue("Скопировать SRT-сервер", srt)
+    Text("RTMP-сервер: $rtmp")
+    CopyConnectionValue("Скопировать RTMP-сервер", rtmp)
+    Text("Идентификатор источника: $sourceId")
+    CopyConnectionValue("Скопировать идентификатор", sourceId)
     if (state.sourceKey.isNotBlank()) {
         Text("Ключ источника: ${state.sourceKey}")
-        TextButton(onClick = {
-            val clip = ClipData.newPlainText("Ключ источника", state.sourceKey)
-            clip.description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
-            context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
-        }) { Text("Скопировать ключ") }
+        CopyConnectionValue("Скопировать ключ источника", state.sourceKey, sensitive = true)
         TextButton(onClick = { model.hideKey() }) { Text("Скрыть ключ") }
     } else Text("Используйте сохранённый ключ: сервер не выдаёт его повторно.")
-    Text("SRT streamid: publish:${state.source?.optString("source_id")}:publisher:КЛЮЧ\nRTMP: добавьте /ИСТОЧНИК?user=publisher&pass=КЛЮЧ к адресу сервера.")
+    Text("Для SRT вставьте Stream ID, для RTMP — ключ трансляции. Сервер вставляется отдельно.")
+    CopyConnectionValue("Скопировать SRT Stream ID", if (state.sourceKey.isNotBlank()) "publish:$sourceId:publisher:${state.sourceKey}" else "", sensitive = true)
+    CopyConnectionValue("Скопировать RTMP-ключ трансляции", if (state.sourceKey.isNotBlank()) "$sourceId?user=publisher&pass=${state.sourceKey}" else "", sensitive = true)
+    if (state.sourceKey.isBlank()) Text("Готовые Stream ID и RTMP-ключ доступны при выдаче ключа источника. Для SRT используйте publish:$sourceId:publisher:КЛЮЧ, для RTMP — $sourceId?user=publisher&pass=КЛЮЧ, подставив сохранённый ключ.")
     TextButton(onClick = { rotation = true }, enabled = !state.busy) { Text("Сменить ключ источника") }
     if (rotation) AlertDialog(onDismissRequest = { password = ""; rotation = false }, title = { Text("Сменить ключ источника?") }, text = { Field("Пароль владельца", password, { password = it }, secret = true) },
         confirmButton = { TextButton(onClick = { model.rotateKey(password); password = ""; rotation = false }, enabled = password.isNotBlank()) { Text("Сменить ключ") } }, dismissButton = { TextButton(onClick = { password = ""; rotation = false }) { Text("Отмена") } })

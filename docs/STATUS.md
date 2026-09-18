@@ -50,3 +50,15 @@ The current source fixes TLS certificate selection for IP clients without SNI vi
 Caddy `default_sni`. Real proxy tests reproduce the previous handshake failure and
 verify IPv4/IPv6/DNS with normal certificate validation. The published preview bundle includes this fix. Target-host logs show successful IP certificate issuance;
 complete READY/owner/stream acceptance and public renewal remain unaccepted.
+
+The current source simplifies mobile TOTP enrollment with a sensitive clipboard
+copy action in Android and manual-entry guidance in both clients. Source setup
+also provides copy buttons for server addresses, source ID/key and ready-to-use
+SRT Stream ID/RTMP stream key. Ready-to-use credentials are unavailable when the
+source key is no longer in client memory. Browser clipboard values and Android
+build/lint passed locally. Clients
+automatically provision an always-available source; the global routing switch
+and source disable endpoint are removed. SQLite migration 000008 restores
+previously disabled owner sources without rotating keys. These changes are not
+in the published Android 0.3.2/server .3 preview. Android build/lint/unit tests,
+API/storage tests and five browser checks passed locally.

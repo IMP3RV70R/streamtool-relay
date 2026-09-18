@@ -113,19 +113,16 @@ func TestUsersDatabase(t *testing.T) {
 	if err = s.Pool.QueryRow(ctx, `INSERT INTO stream_sessions(stream_id,ingest_connection_id,phase) VALUES(?1,?2,'LIVE') RETURNING id`, result.SourceID, connectionID).Scan(&sessionID); err != nil {
 		t.Fatal(err)
 	}
-	if w := call("DELETE", "/v1/me/source", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), `"enabled":false`) {
-		t.Fatalf("routing disable failed: %d %s", w.Code, w.Body.String())
+	if w := call("DELETE", "/v1/me/source", nil, c1); w.Code != 405 {
+		t.Fatalf("routing disable route is still active: %d %s", w.Code, w.Body.String())
 	}
 	var desired, phase string
 	var operatorStopped bool
-	if err = s.Pool.QueryRow(ctx, `SELECT desired,phase,operator_stopped FROM stream_sessions WHERE id=?1`, sessionID).Scan(&desired, &phase, &operatorStopped); err != nil || desired != "STOPPED" || phase != "STOPPING" || !operatorStopped {
-		t.Fatal("routing disable did not stop active session", desired, phase, operatorStopped, err)
+	if err = s.Pool.QueryRow(ctx, `SELECT desired,phase,operator_stopped FROM stream_sessions WHERE id=?1`, sessionID).Scan(&desired, &phase, &operatorStopped); err != nil || phase != "LIVE" || operatorStopped {
+		t.Fatal("rejected routing disable affected active session", desired, phase, operatorStopped, err)
 	}
-	if w := call("GET", "/v1/me/source", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), `"enabled":false`) {
-		t.Fatalf("disabled routing was not preserved: %d %s", w.Code, w.Body.String())
-	}
-	if w := call("POST", "/v1/me/source", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), `"enabled":true`) || strings.Contains(w.Body.String(), result.Key) {
-		t.Fatalf("routing re-enable failed: %d %s", w.Code, w.Body.String())
+	if w := call("POST", "/v1/me/source", nil, c1); w.Code != 200 || strings.Contains(w.Body.String(), result.Key) || !strings.Contains(w.Body.String(), result.SourceID) {
+		t.Fatalf("idempotent provisioning changed source identity: %d %s", w.Code, w.Body.String())
 	}
 	if w := call("GET", "/v1/me/source/slate", nil, c1); w.Code != 200 || !strings.Contains(w.Body.String(), `"on_source_loss":true`) || !strings.Contains(w.Body.String(), `"forced":false`) {
 		t.Fatal("default slate settings unavailable", w.Code, w.Body.String())

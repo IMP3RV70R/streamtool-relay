@@ -13,7 +13,7 @@ See [authentication protection](CABINET_SECURITY.md).
 
 ## Stream controls
 
-- Explicitly enable routing; opening the page does not create a source.
+- The source is provisioned automatically after login; routing is always available.
 - Save source credentials when first issued. Rotation requires password confirmation.
 - Configure outputs, toggle them, retry independently or remove them. Disabled
   outputs still occupy a slot; all outputs share one quality and fallback.

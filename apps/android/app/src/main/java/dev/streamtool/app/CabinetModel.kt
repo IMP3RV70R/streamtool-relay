@@ -106,9 +106,9 @@ class CabinetModel(private val sessions: SessionStore): ViewModel() {
     fun refreshAll() = action { if (state.authenticated) refresh() else reconnect() }
     private suspend fun refresh() {
         val c = client()
-        val source = try { c.json("/v1/me/source") } catch (e: ApiError) { if (e.status != 404) throw e; null }
+        val source = c.json("/v1/me/source", "POST")
+        if (source.optString("ingest_key").isNotBlank()) state = state.copy(sourceKey = source.getString("ingest_key"))
         state = state.copy(source = source)
-        if (source == null) { state = state.copy(outputs = emptyList(), observedAt = 0); return }
         val data = JSONArray(c.request("/v1/me/source/outputs"))
         val outputs = (0 until data.length()).map { data.getJSONObject(it).let { d -> OutputItem(d.getString("id"), d.getString("name"), d.getString("endpoint"), d.getBoolean("enabled"), d.getLong("generation")) } }
         state = state.copy(outputs = outputs, media = c.json("/v1/me/source/media"), slate = c.json("/v1/me/source/slate"), fallback = c.json("/v1/me/source/fallback"))
@@ -121,11 +121,6 @@ class CabinetModel(private val sessions: SessionStore): ViewModel() {
     suspend fun poll() {
         if (!state.authenticated || state.replacing || state.source == null || !gate.tryLock()) return
         try { readStatus() } catch (e: CancellationException) { throw e } catch (e: Exception) { failure(e) } finally { gate.unlock() }
-    }
-    fun routing(enabled: Boolean) = action {
-        val result = client().json("/v1/me/source", if (enabled) "POST" else "DELETE")
-        if (result.has("ingest_key")) state = state.copy(sourceKey = result.getString("ingest_key"))
-        refresh()
     }
     fun hideKey() { state = state.copy(sourceKey = "") }
     fun rotateKey(password: String) = action {

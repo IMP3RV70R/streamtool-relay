@@ -82,22 +82,20 @@ async function boot() {
   showPage();
 }
 
-function renderRoutingAvailability(enabled, exists = true) {
-  $('routing-enabled').checked = enabled;
-  $('routing-state').textContent = enabled ? 'Маршрутизация включена. Источник и выход готовы к работе.' : exists ? 'Маршрутизация выключена. Настройки источника, ключ и выход сохранены.' : 'Маршрутизация ещё не настроена.';
-  document.querySelectorAll('[data-routing-active]').forEach(element => { element.hidden = !enabled; });
+function renderSourceAvailability(available) {
+  $('routing-state').textContent = available ? 'Источник готов. Эфир начнётся при подключении источника и включённого выхода.' : 'Подготавливаем источник…';
+  document.querySelectorAll('[data-routing-active]').forEach(element => { element.hidden = !available; });
 }
-async function loadSource(enable = false) {
+async function loadSource() {
   if (sourceLoading) return;
   sourceLoading = true;
   const version = epoch;
   try {
-    const source = await api('/me/source', enable ? 'POST' : 'GET');
+    const source = await api('/me/source', 'POST');
     if (version !== epoch || $('cabinet').hidden) return;
-    renderRoutingAvailability(source.enabled, true);
-    selected = source.enabled ? source.source_id : '';
+    renderSourceAvailability(true);
+    selected = source.source_id;
     mediaConfigured = source.media_configured;
-    if (!source.enabled || version !== epoch || $('cabinet').hidden) return;
     $('ingest').hidden = false;
     const sameSource = $('ingest-id').value === source.source_id;
     $('ingest-id').value = source.source_id;
@@ -105,20 +103,20 @@ async function loadSource(enable = false) {
     $('ingest-key').type = 'password';
     $('source-server').value = source.srt_url || 'Видеосервер ещё не настроен';
     $('source-rtmp').value = source.rtmp_url || 'RTMP-вход не настроен';
+    updateSourceCopyButtons();
     $('srt-hint').textContent = 'publish:' + source.source_id + ':publisher:КЛЮЧ';
     $('source-state').textContent = !source.media_configured ? 'Приём и передача видео на этом сервере не включены.' : !source.delivery_configured ? 'Источник настроен. Добавьте или включите выход для передачи.' : 'Источник и выход настроены. Начните передачу с источника для начала эфира.';
     $('source-state').textContent += $('ingest-key').value ? ' Сохраните ключ сейчас: после перезагрузки он больше не выдаётся.' : ' Используйте сохранённый ключ. Если он потерян, смените его ниже.';
     await loadMedia(); await loadFallback(); await loadOutputs(); await refresh();
   } catch (error) {
-    if (!enable && error.status === 404) { selected = ''; renderRoutingAvailability(false, false); return; }
     throw error;
   } finally { sourceLoading = false; }
 }
-function renderDashboardUnavailable(exists) {
+function renderDashboardUnavailable() {
   selected = '';
   $('dashboard-empty').hidden = false;
-  $('dashboard-empty-title').textContent = exists ? 'Маршрутизация выключена' : 'Маршрутизация ещё не настроена';
-  $('dashboard-empty-text').textContent = exists ? 'Включите маршрутизацию, чтобы управлять эфиром.' : 'Включите маршрутизацию, чтобы подключить источник и выход.';
+  $('dashboard-empty-title').textContent = 'Источник ещё не подготовлен';
+  $('dashboard-empty-text').textContent = 'Откройте настройки источника или повторите загрузку.';
   $('controls').hidden = true;
 }
 async function loadDashboard() {
@@ -126,13 +124,12 @@ async function loadDashboard() {
   try {
     const source = await api('/me/source');
     if (version !== epoch || $('cabinet').hidden) return;
-    if (!source.enabled) { renderDashboardUnavailable(true); return; }
     selected = source.source_id; mediaConfigured = source.media_configured;
     $('dashboard-empty').hidden = true; $('controls').hidden = false;
     await loadSlate(); await refresh();
   } catch (error) {
     if (error.status !== 404) throw error;
-    if (version === epoch) renderDashboardUnavailable(false);
+    if (version === epoch) renderDashboardUnavailable();
   }
 }
 function renderSlate(value) {
@@ -287,22 +284,12 @@ $('download-recovery').onclick = () => {
 };
 $('replace-totp').onclick = () => { signedOut(); setupRequired = false; replacingTOTP = true; renderAuthMode(); };
 $('logout').onclick = () => run(async () => { await api('/auth/logout', 'POST'); signedOut(); });
-$('source-retry').onclick = () => run(() => loadSource(false));
+$('source-retry').onclick = () => run(() => loadSource());
 $('show-key').onclick = () => { $('ingest-key').type = $('ingest-key').type === 'password' ? 'text' : 'password'; };
 $('slate-on-loss').onchange = () => run(() => saveSlate({on_source_loss: $('slate-on-loss').checked, forced: slateForced}));
 $('slate-force').onclick = () => run(() => saveSlate({on_source_loss: $('slate-on-loss').checked, forced: !slateForced}));
 $('stop').onclick = () => { if (confirm('Завершить эфир, включая заглушку?')) run(async () => { await api('/me/source/stop', 'POST'); notice('Команда завершения отправлена.'); await refresh(); }); };
-$('routing-enabled').onchange = () => run(async () => {
-  const enabled = $('routing-enabled').checked;
-  try {
-    if (enabled) { await loadSource(true); await loadDashboard(); notice('Сервис включён.'); }
-    else {
-      if (!confirm('Выключить маршрутизацию и остановить текущий эфир? Настройки сохранятся.')) { $('routing-enabled').checked = true; return; }
-      await api('/me/source', 'DELETE'); selected = ''; renderRoutingAvailability(false, true); renderDashboardUnavailable(true); notice('Маршрутизация выключена.');
-    }
-  } catch (error) { await loadSource(false); throw error; }
-});
-$('source-key-form').onsubmit = event => { event.preventDefault(); run(async () => { const version = epoch, password = $('source-password').value; $('source-password').value = ''; const source = await api('/me/source/credential', 'POST', {password}); if (version !== epoch || $('cabinet').hidden) return; $('ingest-key').value = source.ingest_key; $('ingest-key').type = 'password'; notice('Ключ заменён. Сохраните его и обновите настройки источника.'); }); };
+$('source-key-form').onsubmit = event => { event.preventDefault(); run(async () => { const version = epoch, password = $('source-password').value; $('source-password').value = ''; const source = await api('/me/source/credential', 'POST', {password}); if (version !== epoch || $('cabinet').hidden) return; $('ingest-key').value = source.ingest_key; $('ingest-key').type = 'password'; updateSourceCopyButtons(); notice('Ключ заменён. Сохраните его и обновите настройки источника.'); }); };
 $('outputs-refresh').onclick = () => run(async () => { await loadOutputs(); await refresh(); });
 $('output-cancel').onclick = () => run(async () => { resetOutputForm(); await loadOutputs(); });
 $('output-form').onsubmit = event => { event.preventDefault(); run(async () => {
@@ -357,3 +344,33 @@ run(async () => {
  renderAuthMode();
  $('submit-auth').disabled = false;
 });
+
+$('totp-copy').onclick = () => run(async () => {
+  const secret = $('totp-secret').textContent;
+  if (!secret) return;
+  if (!navigator.clipboard?.writeText) throw new Error('Копирование недоступно. Выделите ключ и скопируйте вручную.');
+  await navigator.clipboard.writeText(secret);
+  notice('Ключ скопирован. Добавьте его в аутентификаторе и вернитесь для подтверждения.');
+});
+
+function sourceCopyValue(name) {
+  const key = $('ingest-key').value, id = $('ingest-id').value;
+  if (name === 'srt-stream-id') return key && id ? 'publish:' + id + ':publisher:' + key : '';
+  if (name === 'rtmp-stream-key') return key && id ? id + '?user=publisher&pass=' + encodeURIComponent(key) : '';
+  const value = $(name).value;
+  return /^(source-server|source-rtmp)$/.test(name) && !/^(srt|rtmp|rtmps):\/\//.test(value) ? '' : value;
+}
+function updateSourceCopyButtons() {
+  for (const name of ['source-server','source-rtmp','ingest-id','ingest-key','srt-stream-id','rtmp-stream-key']) {
+    $('copy-' + name).disabled = !sourceCopyValue(name);
+  }
+}
+for (const name of ['source-server','source-rtmp','ingest-id','ingest-key','srt-stream-id','rtmp-stream-key']) {
+  $('copy-' + name).onclick = () => run(async () => {
+    const value = sourceCopyValue(name);
+    if (!value) return;
+    if (!navigator.clipboard?.writeText) throw new Error('Копирование недоступно. Выделите значение и скопируйте вручную.');
+    await navigator.clipboard.writeText(value);
+    notice('Скопировано. Вставьте значение в настройки источника.');
+  });
+}

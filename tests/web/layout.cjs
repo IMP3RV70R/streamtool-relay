@@ -6,14 +6,17 @@ const assert = require('node:assert/strict');
   const browser = await chromium.launch({channel: 'chrome', headless: true});
   try {
     const page = await browser.newPage({viewport: {width: 1440, height: 900}});
+    let provisions = 0;
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/v1/**',async route=>{
       const path=new URL(route.request().url()).pathname;
+      if (path === '/v1/me/source' && route.request().method() === 'POST') provisions++;
+      assert.notEqual(route.request().method() + ' ' + path, 'DELETE /v1/me/source');
       const bodies={
         '/v1/me':{account_id:'owner-test-account'},
         '/v1/auth/setup':{required:false},
-        '/v1/me/source':{source_id:'test',enabled:true,media_configured:true},
+        '/v1/me/source':{source_id:'test',media_configured:true},
         '/v1/me/source/fallback':null,
         '/v1/me/source/media':{width:1280,height:720,fps_num:30,fps_den:1,video_kbps:3000,audio_kbps:160,generation:1},
         '/v1/me/source/slate':{on_source_loss:true,forced:false,generation:1},
@@ -57,6 +60,8 @@ const assert = require('node:assert/strict');
     await page.locator('#auth').waitFor();
     assert.equal(await page.locator('#menu-toggle').isVisible(), false);
     assert.deepEqual(errors, []);
+    assert(provisions > 0, 'Source must be provisioned automatically');
+    assert.equal(await page.locator('#routing-enabled').count(), 0);
     console.log('PASS: single-function cabinet, responsive layout, mobile menu, navigation, Escape, logout');
   } finally {
     await browser.close();

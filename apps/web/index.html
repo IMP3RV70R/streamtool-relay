@@ -40,7 +40,10 @@
         <div id="totp-enrollment" hidden>
           <p>Добавьте streamtool-relay в приложение-аутентификатор: отсканируйте QR-код или введите ключ вручную.</p>
           <img id="totp-qr" width="256" height="256" alt="QR-код настройки аутентификатора">
+          <p>На этом телефоне скопируйте ключ и добавьте его вручную в аутентификаторе.</p>
           <p>Ключ: <code id="totp-secret"></code></p>
+          <button id="totp-copy" type="button">Скопировать ключ аутентификатора</button>
+          <p>Имя: streamtool-relay. Тип: по времени (TOTP), 6 цифр, период 30 секунд. Затем вернитесь и введите код.</p>
           <p>Сохраните резервные коды отдельно от телефона. Каждый заменяет второй фактор только один раз; пароль всё равно потребуется.</p>
           <pre id="recovery-codes"></pre>
           <button type="button" id="download-recovery">Скачать резервные коды</button>
@@ -57,8 +60,8 @@
       <div id="cabinet" hidden>
         <div data-page="dashboard" hidden>
           <section id="dashboard-empty" class="card">
-            <h2 id="dashboard-empty-title">Маршрутизация ещё не настроена</h2>
-            <p id="dashboard-empty-text">Включите маршрутизацию, чтобы подключить источник и выход.</p>
+            <h2 id="dashboard-empty-title">Источник ещё не подготовлен</h2>
+            <p id="dashboard-empty-text">Откройте настройки источника или повторите загрузку.</p>
             <a class="button" href="#connection">Настроить подключение</a>
           </section>
           <section id="controls" class="card" hidden>
@@ -73,9 +76,7 @@
           </section>
           <section id="connection" class="card">
             <h2>Подключение и защита эфира</h2>
-            <label><input id="routing-enabled" type="checkbox"> Включить сервис</label>
             <p id="routing-state" role="status">Проверяем состояние…</p>
-            <small>Выключение остановит текущий эфир, но сохранит источник, ключ и выход.</small>
           </section>
           <section class="card" data-routing-active hidden>
             <h2>Источник</h2>
@@ -84,13 +85,20 @@
             <button id="source-retry" type="button" class="secondary">Обновить подключение</button>
             <div id="ingest" hidden>
               <label>SRT-сервер<input id="source-server" readonly></label>
+              <button id="copy-source-server" type="button" class="secondary" disabled>Скопировать SRT-сервер</button>
               <label>RTMP-сервер (альтернативный вход)<input id="source-rtmp" readonly></label>
+              <button id="copy-source-rtmp" type="button" class="secondary" disabled>Скопировать RTMP-сервер</button>
               <small>В RTMP используйте путь /UUID_ИСТОЧНИКА?user=publisher&amp;pass=КЛЮЧ. Одновременно разрешено одно подключение: SRT или RTMP.</small>
               <label>Идентификатор источника<input id="ingest-id" readonly></label>
+              <button id="copy-ingest-id" type="button" class="secondary" disabled>Скопировать идентификатор</button>
               <label>Ключ источника<input id="ingest-key" readonly type="password"></label>
+              <button id="copy-ingest-key" type="button" class="secondary" disabled>Скопировать ключ источника</button>
               <button id="show-key" type="button" class="secondary">Показать / скрыть ключ</button>
               <p>Stream ID для SRT:</p>
               <code id="srt-hint"></code>
+              <button id="copy-srt-stream-id" type="button" class="secondary" disabled>Скопировать SRT Stream ID</button>
+              <button id="copy-rtmp-stream-key" type="button" class="secondary" disabled>Скопировать RTMP-ключ трансляции</button>
+              <small>Вставьте адрес сервера отдельно, затем Stream ID для SRT или ключ трансляции для RTMP. Готовые значения доступны, пока известен ключ источника.</small>
               <small>Вместо КЛЮЧ укажите сохранённый ключ. Новый ключ показывается только один раз.</small>
               <details>
                 <summary>Сменить ключ источника</summary>

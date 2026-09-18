@@ -4,7 +4,7 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.route('**/v1/**',async route=>{const req=route.request(),url=new URL(req.url()),p=url.pathname;let body={},status=200;
  if(p==='/v1/me')body={account_id:'owner-test-account'};
  else if(p==='/v1/auth/setup')body={required:false};
- else if(p==='/v1/me/source')body={source_id:'source',enabled:true,media_configured:true,srt_url:'srt://example.invalid',rtmp_url:'rtmp://example.invalid'};
+ else if(p==='/v1/me/source')body={source_id:'source',media_configured:true,srt_url:'srt://example.invalid',rtmp_url:'rtmp://example.invalid'};
  else if(p==='/v1/me/source/media')body={width:1280,height:720,fps_num:30,fps_den:1,video_kbps:3000,audio_kbps:160,generation:1};
  else if(p==='/v1/me/source/slate')body={on_source_loss:true,forced:false,generation:1};
  else if(p==='/v1/me/source/outputs')body=[];

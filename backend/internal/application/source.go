@@ -66,7 +66,7 @@ func (a *API) source(w http.ResponseWriter, r *http.Request, account string) {
 		problem(w, 405, "method not allowed")
 		return
 	}
-	if r.Method != "GET" && r.Method != "POST" && (r.Method != "DELETE" || r.URL.Path != "/v1/me/source") {
+	if r.Method != "GET" && r.Method != "POST" {
 		problem(w, 405, "method not allowed")
 		return
 	}
@@ -77,8 +77,7 @@ func (a *API) source(w http.ResponseWriter, r *http.Request, account string) {
 	ctx := r.Context()
 	if r.Method == "GET" {
 		var id string
-		var enabled bool
-		if err := a.Store.Pool.QueryRow(ctx, `SELECT s.id,s.enabled FROM account_sources a JOIN streams s ON s.id=a.stream_id WHERE a.account_id=?1`, account).Scan(&id, &enabled); errors.Is(err, sql.ErrNoRows) {
+		if err := a.Store.Pool.QueryRow(ctx, `SELECT s.id FROM account_sources a JOIN streams s ON s.id=a.stream_id WHERE a.account_id=?1`, account).Scan(&id); errors.Is(err, sql.ErrNoRows) {
 			problem(w, 404, "source not found")
 			return
 		} else if err != nil {
@@ -90,32 +89,7 @@ func (a *API) source(w http.ResponseWriter, r *http.Request, account string) {
 			problem(w, 503, "source unavailable")
 			return
 		}
-		writeJSON(w, 200, map[string]any{"source_id": id, "enabled": enabled, "srt_url": a.PublicSRTURL, "rtmp_url": a.PublicRTMPURL, "media_configured": a.MediaConfigured, "delivery_configured": delivery})
-		return
-	}
-	if r.Method == "DELETE" {
-		tx, err := a.Store.Pool.Begin(ctx)
-		if err != nil {
-			problem(w, 503, "source unavailable")
-			return
-		}
-		defer tx.Rollback(ctx)
-		var id string
-		if err = tx.QueryRow(ctx, `UPDATE streams AS s SET enabled=false,generation=generation+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') FROM account_sources a WHERE a.stream_id=s.id AND a.account_id=?1 RETURNING id`, account).Scan(&id); errors.Is(err, sql.ErrNoRows) {
-			problem(w, 404, "source not found")
-			return
-		} else if err != nil {
-			problem(w, 503, "source unavailable")
-			return
-		}
-		if _, err = tx.Exec(ctx, `UPDATE stream_sessions SET operator_stopped=true,desired='STOPPED',phase=CASE WHEN phase IN ('ENDED','FAILED') THEN phase ELSE 'STOPPING' END,generation=generation+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE stream_id=?1 AND phase NOT IN ('ENDED','FAILED')`, id); err == nil {
-			_, err = tx.Exec(ctx, `INSERT INTO audit_records(account_id,action,resource_type,resource_id) VALUES(?1,'DISABLE_ROUTING','stream',?2)`, account, id)
-		}
-		if err != nil || tx.Commit(ctx) != nil {
-			problem(w, 503, "source unavailable")
-			return
-		}
-		writeJSON(w, 200, map[string]any{"source_id": id, "enabled": false})
+		writeJSON(w, 200, map[string]any{"source_id": id, "srt_url": a.PublicSRTURL, "rtmp_url": a.PublicRTMPURL, "media_configured": a.MediaConfigured, "delivery_configured": delivery})
 		return
 	}
 	rotate := r.URL.Path == "/v1/me/source/credential"
@@ -240,5 +214,5 @@ func (a *API) source(w http.ResponseWriter, r *http.Request, account string) {
 		problem(w, 503, "source unavailable")
 		return
 	}
-	writeJSON(w, 200, map[string]any{"source_id": id, "enabled": true, "ingest_key": key, "srt_url": a.PublicSRTURL, "rtmp_url": a.PublicRTMPURL, "media_configured": a.MediaConfigured, "delivery_configured": delivery})
+	writeJSON(w, 200, map[string]any{"source_id": id, "ingest_key": key, "srt_url": a.PublicSRTURL, "rtmp_url": a.PublicRTMPURL, "media_configured": a.MediaConfigured, "delivery_configured": delivery})
 }

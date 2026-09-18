@@ -11,9 +11,10 @@ The current API covers only account access, stream control, one source,
 image/video fallback, up to eight outputs, optional output quality and first-owner setup. The authoritative endpoint table is in
 [docs/CABINET.md](../docs/CABINET.md#основной-owner-api).
 
-`POST /v1/me/source` idempotently provisions or enables the account source. The key is
-returned only on first creation. `DELETE /v1/me/source` disables routing and stops an
-active session without deleting source or output configuration.
+`POST /v1/me/source` idempotently provisions the always-available account source. Both clients do this
+automatically after authentication. The key is returned only on first creation;
+repeat requests preserve the key, outputs and active session. There is no source
+disable/delete route. Enabled outputs receive media when a source session starts.
 
 `GET /v1/me/source/status` includes `can_stop` and `stop_block_reason`:
 `SOURCE_CONNECTED`, `SOURCE_STATE_UNKNOWN`, `SESSION_INACTIVE`, or an empty reason

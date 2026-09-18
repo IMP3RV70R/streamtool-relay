@@ -23,6 +23,9 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.locator('#notice').filter({hasText:'Попробуйте через 1 мин.'}).waitFor();assert.equal(owner,false);
  await page.click('#submit-auth');await page.locator('#totp-enrollment').waitFor();
  assert.equal(owner,false);assert.equal(await page.locator('#cabinet').isVisible(),false);assert.equal(await page.locator('#password').inputValue(),'');assert.equal(await page.locator('#setup-token').inputValue(),'');
+ await page.evaluate(() => { window.copiedSecret = ''; Object.defineProperty(navigator, 'clipboard', {value:{writeText: async value => {window.copiedSecret = value;}}}); });
+ await page.click('#totp-copy'); assert.equal(await page.evaluate(() => window.copiedSecret),'TESTSECRET');
+ assert.equal(await page.locator('#routing-enabled').count(),0);
  assert.equal(await page.locator('#totp-secret').innerText(),'TESTSECRET');assert.match(await page.locator('#recovery-codes').innerText(),/ONE-TIME-CODE/);
  await page.setViewportSize({width:320,height:844});assert(await page.evaluate(()=>document.querySelector('#page-scroll').scrollWidth===document.querySelector('#page-scroll').clientWidth),'Enrollment overflows mobile viewport');
  await page.fill('#enroll-code','000000');await page.click('#confirm-enrollment');assert.equal(confirmations,0);
