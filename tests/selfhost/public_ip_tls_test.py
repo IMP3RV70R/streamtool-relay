@@ -38,7 +38,9 @@ class PublicIpTlsTest(unittest.TestCase):
         name = 'streamtool-ip-tls-' + uuid.uuid4().hex[:12]
         try:
             subprocess.run(['docker', 'run', '--detach', '--name', name, '--cap-drop=ALL',
-                            '--security-opt=no-new-privileges', '-p', '127.0.0.1::8443',
+                            '--security-opt=no-new-privileges', '--user', str(os.getuid())+':'+str(os.getgid()),
+                            '--read-only', '--tmpfs', '/tmp:rw,noexec,nosuid,size=16m,mode=1777',
+                            '-e', 'XDG_DATA_HOME=/tmp/data', '-e', 'XDG_CONFIG_HOME=/tmp/config', '-p', '127.0.0.1::8443',
                             '-v', str(self.root)+':/test:ro', '-v', str(self.root/'tls.crt')+':/certs/ca.crt:ro',
                             '-e', 'DOMAIN='+host, '-e', 'TLS_SERVER_NAME='+host.strip('[]'),
                             os.environ['CADDY_TEST_IMAGE'], 'caddy', 'run', '--config', '/test/Caddyfile',
