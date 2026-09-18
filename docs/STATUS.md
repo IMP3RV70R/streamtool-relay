@@ -22,7 +22,7 @@ release distribution configuration is supplied. Dependency preparation is availa
 Owner update routes are disabled by default. Graphical update controls, public
 update-feed discovery and a landing-page browser installer are absent.
 The repository is [IMP3RV70R/streamtool-relay](https://github.com/IMP3RV70R/streamtool-relay).
-The signed [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.3) includes amd64/arm64 bundles, an initial-install-only
+The signed [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.4) includes amd64/arm64 bundles, an initial-install-only
 manifest and a release-signed Android APK with pinned preview trust. Its metadata
 expires on 19 October 2026. The ordinary builds remain unconfigured; no stable
 production release or public update feed is configured.
@@ -51,22 +51,19 @@ Caddy `default_sni`. Real proxy tests reproduce the previous handshake failure a
 verify IPv4/IPv6/DNS with normal certificate validation. The published preview bundle includes this fix. Target-host logs show successful IP certificate issuance;
 complete READY/owner/stream acceptance and public renewal remain unaccepted.
 
-The current source simplifies mobile TOTP enrollment with a sensitive clipboard
-copy action in Android and manual-entry guidance in both clients. Source setup
-also provides copy buttons for server addresses, source ID/key and ready-to-use
-SRT Stream ID/RTMP stream key. Ready-to-use credentials are unavailable when the
-source key is no longer in client memory. Browser clipboard values and Android
-build/lint passed locally. Clients
-automatically provision an always-available source; the global routing switch
-and source disable endpoint are removed. SQLite migration 000008 restores
-previously disabled owner sources without rotating keys. The Android changes are included in the signed 0.3.3 APK; anonymous APK
-download/hash and the unchanged signing identity passed verification. Current-source
-web/backend changes and migration 000008 are not in the server .3 preview. Android build/lint/unit tests,
-API/storage tests and five browser checks passed locally.
+The signed Android 0.3.4/server .4 preview simplifies mobile TOTP enrollment
+with a sensitive copy action and manual-entry guidance. Both clients copy
+SRT/RTMP addresses, source ID/key and ready-to-use connection credentials.
+Routing is always available: clients prepare the source automatically, while
+individual output controls and guarded broadcast completion remain available.
+Migration 000008 restores disabled owner sources without rotating keys.
 
-Current source stores source credentials encrypted with the existing key provider
-and source-bound AEAD, retaining the ingest authentication hash. Authenticated
-owner GET/POST can retrieve the same key with no-store responses. Creation and
-rotation commit the hash and encrypted credential atomically. Migration 000009
-preserves existing hash-only keys; those require explicit owner rotation before
-repeat retrieval is possible. This change is not in published preview bundles/APKs.
+Migration 000009 stores source keys encrypted with the existing provider and
+source-bound AEAD, retaining the ingest hash. Authenticated owner GET/POST
+retrieves the same key with no-store responses. Creation/rotation commits the
+hash and ciphertext atomically. Historical hash-only keys are preserved and
+cannot be reconstructed; only explicit owner rotation stores a new key.
+Local restart, concurrent provisioning, authorization and tampering tests
+passed. GitHub CI, both native packages/scans/TLS tests, independent signature
+verification and anonymous metadata/bundle/APK downloads passed. The new
+preview supports clean installation only (sequence 3, schema 0 → 9).

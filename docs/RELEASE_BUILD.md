@@ -127,10 +127,9 @@ from the root MIT license; protected production signing is not configured.
 
 The reviewed public preview trust and fixed metadata addresses are in
 [`preview-distribution.json`](../infra/release/preview-distribution.json). The
-preview uses native server candidate `0.1.0-candidate.20260918.3` from source
-revision `6e3b888`; the signed Android 0.3.3 APK was built from `c5245bd`.
-It uses the same server distribution. Current-source web/backend changes and
-SQLite migration 000008 are not included in the existing server bundles.
+preview uses native server candidate `0.1.0-candidate.20260918.4` from source
+revision `e4c37ea`; the signed Android 0.3.4 APK was built from the same source.
+It includes encrypted source-key retrieval and always-available routing in both clients.
 Ordinary Android builds still disable deployment.
 
 `make android-preview` builds/lints a release APK with this pinned trust. Its
@@ -139,14 +138,14 @@ Sign that APK on the trusted local machine with the external Android keystore;
 never put the keystore or password into Gradle configuration, the repository or
 Actions. Preserve both the Android signer and the external Ed25519 preview seed.
 
-The initial preview manifest supports clean installation only: sequence 2,
-minimum sequence/schema 0, maximum installed schema 0, target SQLite schema 7.
+The initial preview manifest supports clean installation only: sequence 3,
+minimum sequence/schema 0, maximum installed schema 0, target SQLite schema 9.
 It does not authorize upgrades of existing installations. Metadata validity is
 bounded to 31 days; expired metadata fails closed. Publishing renewed metadata
 requires a new sequence and immutable release URLs, plus a matching client build.
 The preview does not establish clean-VDS, public ACME or Twitch acceptance.
 
-The published [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.3) contains the release-signed APK, both native
+The published [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.4) contains the release-signed APK, both native
 bundles, manifest/signature, SHA256SUMS and exact-image scanner reports. Anonymous
 metadata and both bundle downloads passed the actual installer redirect/hash policy.
 The independent verifier accepted signature and safe staging of both downloaded

@@ -5,7 +5,7 @@ Its host allowlist is clean Debian 13 or Ubuntu 24.04. A purchased domain is not
 required by the protocol.
 
 The protocol is implemented and enabled in the release-signed
-[preview APK](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.3). It remains **disabled in default builds** without distribution configuration. Real SSH/apt/systemd/reboot/public ACME and the
+[preview APK](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.4). It remains **disabled in default builds** without distribution configuration. Real SSH/apt/systemd/reboot/public ACME and the
 complete target-server flow remain unaccepted. See [current status](STATUS.md).
 
 ## User flow
@@ -30,7 +30,7 @@ The steps describe the configured implementation. An unconfigured debug APK cann
 deploy the application. Distribution build configuration is in the
 [Android README](../apps/android/README.md).
 
-The changed-key confirmation flow is included in the signed 0.3.3 preview APK.
+The changed-key confirmation flow is included in the signed 0.3.4 preview APK.
 
 ## Trust and credentials
 
