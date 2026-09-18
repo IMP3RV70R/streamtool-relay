@@ -29,7 +29,8 @@ must not restrict hosting choice or require a cloud account.
 Project code uses [MIT](../LICENSE). Third-party software retains its own licenses
 and distribution obligations. GitHub Actions/Releases are the selected distribution
 provider. The repository is [IMP3RV70R/streamtool-relay](https://github.com/IMP3RV70R/streamtool-relay).
-No production signing key or public release feed is configured.
+A signed installation preview uses the separately pinned `preview` channel.
+No stable production release or public update feed is configured.
 
 ## Stream behavior
 

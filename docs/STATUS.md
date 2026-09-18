@@ -1,6 +1,6 @@
 # Current project status
 
-Updated: 2026-09-18. **PRE-LAUNCH**; no public release has been published.
+Updated: 2026-09-18. **PRE-LAUNCH**; a signed installation preview is published, with no accepted production release.
 The [product contract](PRODUCT_ALIGNMENT.md) defines the current scope.
 
 ## Implemented and locally verified
@@ -22,7 +22,10 @@ release distribution configuration is supplied. Dependency preparation is availa
 Owner update routes are disabled by default. Graphical update controls, public
 update-feed discovery and a landing-page browser installer are absent.
 The repository is [IMP3RV70R/streamtool-relay](https://github.com/IMP3RV70R/streamtool-relay).
-Production release key/feed and APK release signing are not configured.
+The signed [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.2) includes amd64/arm64 bundles, an initial-install-only
+manifest and a release-signed Android APK with pinned preview trust. Its metadata
+expires on 19 October 2026. The ordinary builds remain unconfigured; no stable
+production release or public update feed is configured.
 
 Local Linux update/rollback uses controlled certificates and ephemeral keys.
 Scans apply only to their exact images and database date.

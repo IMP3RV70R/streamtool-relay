@@ -1,8 +1,8 @@
 # Native bundles and offline signing
 
 Implemented: architecture-specific native Linux packaging and a signing/preflight
-command. Native GitHub builds are configured; no production seed, public feed or
-publication is configured.
+command. Native GitHub builds and a manually signed installation preview are
+configured; production publication and public update discovery are not configured.
 The repository is `IMP3RV70R/streamtool-relay`. This process is not byte-for-byte
 reproducible: base images, apt repositories and archive timestamps are not locked to
 one immutable snapshot. It provides a repeatable checked release procedure.
@@ -83,7 +83,8 @@ installer/verifier provenance. Any HIGH/CRITICAL or missing-coverage result bloc
 disabled by this tooling. Keep published bytes immutable;
 renewing an expired manifest requires a new sequence, not editing an accepted one.
 Initial-installer GitHub downloads enforce bounded origin/CDN redirect
-checks; public feed publication and update discovery remain unfinished.
+checks; the signed installation preview is published manually on GitHub Releases.
+Public update discovery remains unfinished.
 
 Local integration uses ephemeral external test keys and tiny nonexecuted bundle
 fixtures. Successful two-architecture signing/staging, wrong-key rejection,
@@ -110,8 +111,8 @@ explicitly before packaging, preventing accidental legacy-builder fallback.
 
 Native amd64 and arm64 packaging and exact-image security scans passed on GitHub
 for candidate `0.1.0-candidate.20260918`. These gates do not establish initial host
-installation or production acceptance. No production key or published release feed
-exists. Archive/report uploads explicitly include the hidden `.artifacts` directory
+installation or production acceptance. A separately signed initial-install preview
+is published; no stable production release or update feed exists. Archive/report uploads explicitly include the hidden `.artifacts` directory
 and remain restricted to the declared candidate and report globs.
 
 ## Local evidence and current contract
@@ -141,3 +142,9 @@ It does not authorize upgrades of existing installations. Metadata validity is
 bounded to 31 days; expired metadata fails closed. Publishing renewed metadata
 requires a new sequence and immutable release URLs, plus a matching client build.
 The preview does not establish clean-VDS, public ACME or Twitch acceptance.
+
+The published [preview release](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.2) contains the release-signed APK, both native
+bundles, manifest/signature, SHA256SUMS and exact-image scanner reports. Anonymous
+metadata and both bundle downloads passed the actual installer redirect/hash policy.
+The independent verifier accepted signature and safe staging of both downloaded
+architectures; no installed host was modified by that check.

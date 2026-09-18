@@ -5,8 +5,9 @@ watermark and bounded private bundle staging. This tool never executes package c
 loads images, changes the installed application or declares deployment health.
 The root-only offline coordinator now uses this verifier and admission fencing; see
 [its implementation](UPDATER_ENGINE.md). Initial-installer network download and native SSH job onboarding are now
-implemented (see [onboarding](ONBOARDING.md)). Public release publication, update-feed discovery
-and cabinet update controls remain unfinished.
+implemented (see [onboarding](ONBOARDING.md)). The initial-install signed preview
+is published on GitHub Releases. Public update-feed discovery and cabinet update
+controls remain unfinished.
 
 ## Trust boundary
 

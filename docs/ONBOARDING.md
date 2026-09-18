@@ -4,8 +4,8 @@ The Android wizard uses public IP/root SSH for installation and native owner set
 Its host allowlist is clean Debian 13 or Ubuntu 24.04. A purchased domain is not
 required by the protocol.
 
-The protocol is implemented but **disabled in default builds** until production
-signed distribution is configured. Real SSH/apt/systemd/reboot/public ACME and the
+The protocol is implemented and enabled in the release-signed
+[preview APK](https://github.com/IMP3RV70R/streamtool-relay/releases/tag/0.1.0-candidate.20260918.2). It remains **disabled in default builds** without distribution configuration. Real SSH/apt/systemd/reboot/public ACME and the
 complete target-server flow remain unaccepted. See [current status](STATUS.md).
 
 ## User flow
